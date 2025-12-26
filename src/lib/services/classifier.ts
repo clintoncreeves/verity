@@ -132,12 +132,16 @@ export async function classifyClaim(
   existingFactChecks: ExistingFactCheck[] = []
 ): Promise<ClassificationResult> {
   try {
-    // Build sources section
+    // Build sources section with full context (title, snippet, etc.)
     let sourcesSection = 'SOURCES: None available';
     if (sources.length > 0) {
-      const sourcesList = sources.map((s, i) =>
-        `${i + 1}. ${s.name} (${s.type}, reliability: ${s.reliability}/100)\n   URL: ${s.url}`
-      ).join('\n');
+      const sourcesList = sources.map((s, i) => {
+        let entry = `${i + 1}. ${s.name} (${s.type}, reliability: ${s.reliability}/100)`;
+        if (s.title) entry += `\n   Title: "${s.title}"`;
+        if (s.snippet) entry += `\n   Excerpt: "${s.snippet}"`;
+        entry += `\n   URL: ${s.url}`;
+        return entry;
+      }).join('\n\n');
       sourcesSection = `SOURCES:\n${sourcesList}`;
     }
 
