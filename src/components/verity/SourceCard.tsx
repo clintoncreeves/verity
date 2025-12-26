@@ -103,25 +103,9 @@ export function SourceCard({ source, className }: SourceCardProps) {
                 {getTypeLabel()}
               </Badge>
 
-              <div className="flex items-center gap-2">
-                <div className="flex-1 min-w-[80px]">
-                  <div className="flex items-center justify-between text-xs mb-1">
-                    <span className="text-muted-foreground font-mono">Reliability</span>
-                    <span className={cn("font-mono font-semibold", getReliabilityColor(source.reliability))}>
-                      {source.reliability}%
-                    </span>
-                  </div>
-                  <div className="h-1 w-full bg-muted/30 rounded-full overflow-hidden">
-                    <div
-                      className={cn(
-                        "h-full transition-all",
-                        getReliabilityColor(source.reliability).replace("text-", "bg-")
-                      )}
-                      style={{ width: `${source.reliability}%` }}
-                    />
-                  </div>
-                </div>
-              </div>
+              <Badge variant="outline" className={cn("text-xs font-mono", getReliabilityColor(source.reliability))}>
+                Reliability {source.reliability}%
+              </Badge>
 
               {source.publishDate && (
                 <span className="text-xs text-muted-foreground font-mono ml-auto">

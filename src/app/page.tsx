@@ -98,8 +98,9 @@ export default function Home() {
 
           {result && (
             <>
+              <DisclaimerBanner variant="warning" className="max-w-3xl mx-auto" />
               <ResultCard result={result} />
-              <DisclaimerBanner />
+              <DisclaimerBanner className="max-w-3xl mx-auto" />
             </>
           )}
 

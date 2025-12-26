@@ -9,28 +9,36 @@ import { z } from 'zod';
 import { rateLimit } from '@/lib/utils/rate-limiter';
 import { VerificationRequestSchema, createErrorResponse } from '@/lib/schemas';
 import { verify } from '@/lib/services/verification-orchestrator';
+import { getCorsHeaders, getClientInfo, auditLog } from '@/lib/utils/api-helpers';
 
 const RATE_LIMIT = 10;
 const RATE_WINDOW = 60000; // 1 minute
 
 export async function POST(request: NextRequest) {
-  // Extract IP address for rate limiting
-  const ip =
-    request.headers.get('x-forwarded-for')?.split(',')[0] ||
-    request.headers.get('x-real-ip') ||
-    'unknown';
+  const startTime = Date.now();
+  const origin = request.headers.get('origin');
+  const corsHeaders = getCorsHeaders(origin);
+  const { ip, userAgent } = getClientInfo(request);
 
   // Check rate limit
   const { success, remaining, resetAt } = rateLimit(ip, 'verify', RATE_LIMIT, RATE_WINDOW);
 
-  // Add rate limit headers
+  // Add rate limit and CORS headers
   const headers = new Headers({
     'X-RateLimit-Limit': RATE_LIMIT.toString(),
     'X-RateLimit-Remaining': remaining.toString(),
     'X-RateLimit-Reset': new Date(resetAt).toISOString(),
+    ...corsHeaders,
   });
 
   if (!success) {
+    auditLog({
+      event: 'rate_limited',
+      ip,
+      userAgent,
+      endpoint: '/api/verify',
+    });
+
     return NextResponse.json(
       createErrorResponse('Rate limit exceeded. Please try again later.', 'RATE_LIMITED'),
       {
@@ -45,7 +53,31 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const validated = VerificationRequestSchema.parse(body);
 
+    auditLog({
+      event: 'verification_started',
+      ip,
+      userAgent,
+      endpoint: '/api/verify',
+      inputType: validated.type,
+      inputLength: validated.content.length,
+    });
+
     const result = await processVerification(validated);
+
+    const durationMs = Date.now() - startTime;
+
+    auditLog({
+      event: 'verification_completed',
+      ip,
+      userAgent,
+      endpoint: '/api/verify',
+      inputType: validated.type,
+      inputLength: validated.content.length,
+      resultCategory: result.overallCategory,
+      resultConfidence: result.overallConfidence,
+      verificationId: result.id,
+      durationMs,
+    });
 
     return NextResponse.json(
       {
@@ -55,8 +87,19 @@ export async function POST(request: NextRequest) {
       { headers }
     );
   } catch (error) {
+    const durationMs = Date.now() - startTime;
+
     // Handle Zod validation errors
     if (error instanceof z.ZodError) {
+      auditLog({
+        event: 'validation_error',
+        ip,
+        userAgent,
+        endpoint: '/api/verify',
+        error: 'Invalid request data',
+        durationMs,
+      });
+
       return NextResponse.json(
         createErrorResponse('Invalid request data', 'VALIDATION_ERROR', error.issues),
         {
@@ -68,6 +111,15 @@ export async function POST(request: NextRequest) {
 
     // Handle JSON parsing errors
     if (error instanceof SyntaxError) {
+      auditLog({
+        event: 'parse_error',
+        ip,
+        userAgent,
+        endpoint: '/api/verify',
+        error: 'Invalid JSON',
+        durationMs,
+      });
+
       return NextResponse.json(
         createErrorResponse('Invalid JSON in request body', 'INVALID_JSON'),
         {
@@ -78,7 +130,18 @@ export async function POST(request: NextRequest) {
     }
 
     // Handle unexpected errors
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     console.error('Verification error:', error);
+
+    auditLog({
+      event: 'verification_error',
+      ip,
+      userAgent,
+      endpoint: '/api/verify',
+      error: errorMessage,
+      durationMs,
+    });
+
     return NextResponse.json(
       createErrorResponse(
         'An unexpected error occurred during verification',

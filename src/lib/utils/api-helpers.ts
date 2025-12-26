@@ -114,3 +114,111 @@ export async function retryWithBackoff<T>(
 
   throw lastError || new Error('Retry failed');
 }
+
+/**
+ * Get allowed origins for CORS
+ * In production, only allow requests from the Vercel deployment domain
+ */
+export function getAllowedOrigins(): string[] {
+  const origins: string[] = [];
+
+  // Always allow the Vercel deployment URL
+  if (process.env.VERCEL_URL) {
+    origins.push(`https://${process.env.VERCEL_URL}`);
+  }
+
+  // Allow custom production domain if configured
+  if (process.env.NEXT_PUBLIC_APP_URL) {
+    origins.push(process.env.NEXT_PUBLIC_APP_URL);
+  }
+
+  // In development, allow localhost
+  if (process.env.NODE_ENV === 'development') {
+    origins.push('http://localhost:3000');
+    origins.push('http://127.0.0.1:3000');
+  }
+
+  return origins;
+}
+
+/**
+ * Check if an origin is allowed for CORS
+ */
+export function isOriginAllowed(origin: string | null): boolean {
+  if (!origin) return false;
+
+  const allowedOrigins = getAllowedOrigins();
+
+  // If no origins configured (shouldn't happen), deny by default
+  if (allowedOrigins.length === 0) {
+    return process.env.NODE_ENV === 'development';
+  }
+
+  return allowedOrigins.some(allowed => origin.startsWith(allowed));
+}
+
+/**
+ * Get CORS headers for a request
+ */
+export function getCorsHeaders(origin: string | null): Record<string, string> {
+  const headers: Record<string, string> = {
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type',
+  };
+
+  if (origin && isOriginAllowed(origin)) {
+    headers['Access-Control-Allow-Origin'] = origin;
+  }
+
+  return headers;
+}
+
+/**
+ * Audit log entry interface
+ */
+interface AuditLogEntry {
+  timestamp: string;
+  event: string;
+  ip: string;
+  userAgent?: string;
+  endpoint: string;
+  inputType?: string;
+  inputLength?: number;
+  resultCategory?: string;
+  resultConfidence?: number;
+  durationMs?: number;
+  error?: string;
+  verificationId?: string;
+}
+
+/**
+ * Log an audit event
+ * In production, this could be extended to write to a logging service
+ */
+export function auditLog(entry: Omit<AuditLogEntry, 'timestamp'>): void {
+  const logEntry: AuditLogEntry = {
+    ...entry,
+    timestamp: new Date().toISOString(),
+  };
+
+  // Structured JSON logging for easy parsing by log aggregators
+  console.log(JSON.stringify({
+    level: entry.error ? 'error' : 'info',
+    type: 'audit',
+    ...logEntry,
+  }));
+}
+
+/**
+ * Extract client info from request for audit logging
+ */
+export function getClientInfo(request: Request): { ip: string; userAgent: string } {
+  const headers = request.headers;
+  const ip =
+    headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
+    headers.get('x-real-ip') ||
+    'unknown';
+  const userAgent = headers.get('user-agent') || 'unknown';
+
+  return { ip, userAgent };
+}
