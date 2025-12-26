@@ -24,6 +24,54 @@ export interface ExtractedClaim {
   confidence: number;
 }
 
+// ============================================
+// CLAIM DECOMPOSITION TYPES
+// ============================================
+
+/**
+ * Types of components within a claim
+ * - verifiable_fact: Can be checked against evidence
+ * - value_judgment: Subjective opinion/interpretation
+ * - prediction: Future-oriented, cannot be verified yet
+ * - presupposition: Assumed context, often verifiable
+ */
+export type ClaimComponentType =
+  | 'verifiable_fact'
+  | 'value_judgment'
+  | 'prediction'
+  | 'presupposition';
+
+/**
+ * A single component within a decomposed claim
+ */
+export interface ClaimComponent {
+  id: string;
+  text: string;
+  type: ClaimComponentType;
+  verifiabilityScore: number; // 0-1, how verifiable this component is
+  explanation: string; // Brief explanation of why this type
+}
+
+/**
+ * Summary statistics for a decomposed claim
+ */
+export interface DecompositionSummary {
+  totalComponents: number;
+  verifiableFacts: number;
+  valueJudgments: number;
+  predictions: number;
+  presuppositions: number;
+  overallVerifiability: number; // 0-1, weighted average
+}
+
+/**
+ * Extended claim with decomposition data
+ */
+export interface DecomposedClaim extends ExtractedClaim {
+  components: ClaimComponent[];
+  decompositionSummary: DecompositionSummary;
+}
+
 export interface VerifiedSource {
   name: string;
   type: 'government' | 'academic' | 'news_wire' | 'fact_checker' | 'official' | 'secondary';

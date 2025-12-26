@@ -51,11 +51,21 @@ export default function Home() {
 
       // Transform API response to component format
       const apiResult = data.data
+
+      // Extract decomposition from first claim (primary claim)
+      const primaryClaim = apiResult.claims?.[0]
+      const decomposition = primaryClaim?.components && primaryClaim?.decompositionSummary
+        ? {
+            components: primaryClaim.components,
+            summary: primaryClaim.decompositionSummary,
+          }
+        : undefined
+
       const transformedResult: VerificationResult = {
         category: mapCategory(apiResult.overallCategory),
         confidence: apiResult.overallConfidence,
         summary: apiResult.summary,
-        reasoning: apiResult.claims?.[0]?.reasoning || "",
+        reasoning: primaryClaim?.reasoning || "",
         sources: apiResult.sources?.map((s: { name: string; url: string; type: string; reliability: number }) => ({
           name: s.name,
           url: s.url,
@@ -79,6 +89,7 @@ export default function Home() {
         })) || [],
         verificationId: apiResult.id,
         verifiedAt: apiResult.verifiedAt,
+        decomposition,
       }
 
       setResult(transformedResult)

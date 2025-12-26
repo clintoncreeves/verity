@@ -5,11 +5,19 @@
 
 import { extractClaims, type ExtractedClaim } from './claim-extractor';
 import { classifyClaim, getCategoryLabel, getCategoryDescription } from './classifier';
+import { decomposeClaim, type DecompositionResult } from './claim-decomposer';
 import { evaluateSource, type SourceEvaluation } from './source-evaluator';
 import { searchFactChecks } from './fact-check-searcher';
 import { searchWeb, searchNews, searchAcademic } from './web-searcher';
 import { generateId, extractDomain } from '@/lib/utils/api-helpers';
-import type { VerificationCategory, Source, ExistingFactCheck, VerificationResult } from '@/types/verity';
+import type {
+  VerificationCategory,
+  Source,
+  ExistingFactCheck,
+  VerificationResult,
+  ClaimComponent,
+  DecompositionSummary,
+} from '@/types/verity';
 
 export interface VerificationRequest {
   type: 'text' | 'image' | 'url';
@@ -30,6 +38,9 @@ export interface VerifiedClaim {
   reasoning: string;
   sources: Source[];
   evidence: string[];
+  // Decomposition data
+  components?: ClaimComponent[];
+  decompositionSummary?: DecompositionSummary;
 }
 
 export interface FullVerificationResult {
@@ -46,6 +57,8 @@ export interface FullVerificationResult {
   summary: string;
   sources: Source[];
   evidence: string[];
+  // Overall decomposition summary
+  overallDecomposition?: DecompositionSummary;
 }
 
 /**
@@ -66,6 +79,13 @@ export async function verify(request: VerificationRequest): Promise<FullVerifica
   console.log('[Verity] Step 1: Extracting claims...');
   const extractedClaims = await extractClaims(content);
   console.log(`[Verity] Extracted ${extractedClaims.length} claims`);
+
+  // Step 1.5: Decompose claims into components (facts vs opinions)
+  console.log('[Verity] Step 1.5: Decomposing claims...');
+  const decompositions: DecompositionResult[] = await Promise.all(
+    extractedClaims.map(claim => decomposeClaim(claim.text))
+  );
+  console.log(`[Verity] Decomposed ${decompositions.length} claims`);
 
   // Step 2: Search for existing fact-checks
   let existingFactChecks: ExistingFactCheck[] = [];
@@ -102,7 +122,9 @@ export async function verify(request: VerificationRequest): Promise<FullVerifica
   console.log('[Verity] Step 4: Verifying claims...');
   const verifiedClaims: VerifiedClaim[] = [];
 
-  for (const claim of extractedClaims) {
+  for (let i = 0; i < extractedClaims.length; i++) {
+    const claim = extractedClaims[i];
+    const decomposition = decompositions[i];
     const classification = await classifyClaim(claim.text, allSources, existingFactChecks);
 
     verifiedClaims.push({
@@ -113,7 +135,10 @@ export async function verify(request: VerificationRequest): Promise<FullVerifica
       confidence: Math.round(classification.confidence * 100),
       reasoning: classification.reasoning,
       sources: allSources,
-      evidence: [classification.reasoning], // Simplified for now
+      evidence: [classification.reasoning],
+      // Include decomposition data
+      components: decomposition.components,
+      decompositionSummary: decomposition.summary,
     });
   }
 
@@ -130,6 +155,9 @@ export async function verify(request: VerificationRequest): Promise<FullVerifica
   // Compile all evidence
   const allEvidence = verifiedClaims.flatMap(c => c.evidence);
 
+  // Compute overall decomposition summary
+  const overallDecomposition = computeOverallDecomposition(decompositions);
+
   const duration = Date.now() - startTime;
   console.log(`[Verity] Verification complete in ${duration}ms`);
 
@@ -144,6 +172,58 @@ export async function verify(request: VerificationRequest): Promise<FullVerifica
     summary,
     sources: allSources,
     evidence: allEvidence,
+    overallDecomposition,
+  };
+}
+
+/**
+ * Compute overall decomposition summary from all claims
+ */
+function computeOverallDecomposition(
+  decompositions: DecompositionResult[]
+): DecompositionSummary {
+  if (decompositions.length === 0) {
+    return {
+      totalComponents: 0,
+      verifiableFacts: 0,
+      valueJudgments: 0,
+      predictions: 0,
+      presuppositions: 0,
+      overallVerifiability: 0,
+    };
+  }
+
+  const totals = decompositions.reduce(
+    (acc, d) => ({
+      totalComponents: acc.totalComponents + d.summary.totalComponents,
+      verifiableFacts: acc.verifiableFacts + d.summary.verifiableFacts,
+      valueJudgments: acc.valueJudgments + d.summary.valueJudgments,
+      predictions: acc.predictions + d.summary.predictions,
+      presuppositions: acc.presuppositions + d.summary.presuppositions,
+      weightedVerifiability:
+        acc.weightedVerifiability +
+        d.summary.overallVerifiability * d.summary.totalComponents,
+    }),
+    {
+      totalComponents: 0,
+      verifiableFacts: 0,
+      valueJudgments: 0,
+      predictions: 0,
+      presuppositions: 0,
+      weightedVerifiability: 0,
+    }
+  );
+
+  return {
+    totalComponents: totals.totalComponents,
+    verifiableFacts: totals.verifiableFacts,
+    valueJudgments: totals.valueJudgments,
+    predictions: totals.predictions,
+    presuppositions: totals.presuppositions,
+    overallVerifiability:
+      totals.totalComponents > 0
+        ? totals.weightedVerifiability / totals.totalComponents
+        : 0,
   };
 }
 

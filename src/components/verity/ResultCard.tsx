@@ -4,8 +4,11 @@ import { ConfidenceBar } from "./ConfidenceBar"
 import { SourceCard, type Source } from "./SourceCard"
 import { EvidenceList, type Evidence } from "./EvidenceList"
 import { FactCheckPanel, type FactCheck } from "./FactCheckPanel"
+import { DecomposedClaimDisplay } from "./DecomposedClaimDisplay"
+import { DecompositionSummaryCard } from "./DecompositionSummaryCard"
 import { getCategoryConfig, type VerificationCategory } from "@/lib/category-config"
 import { cn } from "@/lib/utils"
+import type { ClaimComponent, DecompositionSummary } from "@/types/verity"
 
 export interface VerificationResult {
   category: VerificationCategory
@@ -17,6 +20,11 @@ export interface VerificationResult {
   factChecks?: FactCheck[]
   verificationId?: string
   verifiedAt?: string
+  // Decomposition data
+  decomposition?: {
+    components: ClaimComponent[]
+    summary: DecompositionSummary
+  }
 }
 
 interface ResultCardProps {
@@ -50,6 +58,23 @@ export function ResultCard({ result, className }: ResultCardProps) {
         </CardHeader>
 
         <CardContent className="pt-0 space-y-4">
+          {/* Claim Decomposition Section */}
+          {result.decomposition && result.decomposition.components.length > 0 && (
+            <div className="space-y-4">
+              <div className="border-t pt-4">
+                <h4 className="text-sm font-medium mb-3">What can be verified?</h4>
+                <DecompositionSummaryCard summary={result.decomposition.summary} />
+              </div>
+              <div className="border-t pt-4">
+                <h4 className="text-sm font-medium mb-3">Claim Breakdown</h4>
+                <DecomposedClaimDisplay
+                  components={result.decomposition.components}
+                  summary={result.decomposition.summary}
+                />
+              </div>
+            </div>
+          )}
+
           {result.evidence.length > 0 && (
             <EvidenceList evidence={result.evidence} />
           )}
