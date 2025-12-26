@@ -31,8 +31,7 @@ export async function searchFactChecks(claim: string): Promise<ExistingFactCheck
   const apiKey = process.env.GOOGLE_FACT_CHECK_API_KEY;
 
   if (!apiKey) {
-    console.log('[Verity] Google Fact Check API not configured - using mock results');
-    return getMockFactChecks(claim);
+    throw new Error('Google Fact Check API is not configured. Please add GOOGLE_FACT_CHECK_API_KEY to your environment variables.');
   }
 
   try {
@@ -139,28 +138,3 @@ export async function getFactCheckSummary(claim: string): Promise<{
   };
 }
 
-/**
- * Mock fact-checks for development
- */
-function getMockFactChecks(claim: string): ExistingFactCheck[] {
-  const claimLower = claim.toLowerCase();
-
-  // Return mock fact-checks for common test claims
-  if (claimLower.includes('flat') && claimLower.includes('earth')) {
-    return [
-      { org: 'Snopes', verdict: 'False', date: '2023-04-15', url: 'https://snopes.com/example' },
-      { org: 'PolitiFact', verdict: 'Pants on Fire', date: '2022-11-20', url: 'https://politifact.com/example' },
-    ];
-  }
-
-  if (claimLower.includes('vaccine') && claimLower.includes('microchip')) {
-    return [
-      { org: 'Full Fact', verdict: 'False', date: '2024-01-10', url: 'https://fullfact.org/example' },
-      { org: 'Reuters Fact Check', verdict: 'False', date: '2023-08-22', url: 'https://reuters.com/example' },
-      { org: 'AFP Fact Check', verdict: 'False', date: '2023-06-15', url: 'https://factcheck.afp.com/example' },
-    ];
-  }
-
-  // Return empty for unrecognized claims
-  return [];
-}

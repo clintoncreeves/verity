@@ -3,7 +3,7 @@
  * Uses Google Custom Search API for finding corroborating sources
  */
 
-import { isApiKeyConfigured, fetchWithTimeout } from '@/lib/utils/api-helpers';
+import { fetchWithTimeout } from '@/lib/utils/api-helpers';
 
 export interface SearchResult {
   title: string;
@@ -32,8 +32,7 @@ export async function searchWeb(
   const searchEngineId = process.env.GOOGLE_CUSTOM_SEARCH_CX;
 
   if (!apiKey || !searchEngineId) {
-    console.log('[Verity] Google Search not configured - using mock results');
-    return getMockSearchResults(query);
+    throw new Error('Google Search API is not configured. Please add GOOGLE_CUSTOM_SEARCH_API_KEY and GOOGLE_CUSTOM_SEARCH_CX to your environment variables.');
   }
 
   try {
@@ -72,9 +71,7 @@ export async function searchWeb(
     };
   } catch (error) {
     console.error('[Verity] Google Search failed:', error);
-
-    // Return mock results as fallback
-    return getMockSearchResults(query);
+    throw error;
   }
 }
 
@@ -112,32 +109,3 @@ export async function searchGovernment(
   return searchWeb(govQuery, count);
 }
 
-/**
- * Mock search results for development
- */
-function getMockSearchResults(query: string): WebSearchResponse {
-  return {
-    query,
-    results: [
-      {
-        title: 'Reuters - Breaking News',
-        url: 'https://www.reuters.com/example',
-        description: `Mock search result for: "${query.substring(0, 50)}". Configure GOOGLE_CUSTOM_SEARCH_API_KEY and GOOGLE_CUSTOM_SEARCH_CX for real results.`,
-        displayUrl: 'reuters.com',
-      },
-      {
-        title: 'Associated Press News',
-        url: 'https://apnews.com/example',
-        description: 'Mock result from Associated Press. Real search integration pending.',
-        displayUrl: 'apnews.com',
-      },
-      {
-        title: 'BBC News',
-        url: 'https://www.bbc.com/news/example',
-        description: 'Mock BBC article. Enable Google Search API for actual results.',
-        displayUrl: 'bbc.com',
-      },
-    ],
-    total: 3,
-  };
-}

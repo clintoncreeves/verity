@@ -17,8 +17,6 @@ class AnthropicClient {
     const apiKey = process.env.ANTHROPIC_API_KEY;
     if (apiKey) {
       this.client = new Anthropic({ apiKey });
-    } else {
-      console.warn('[Verity] ANTHROPIC_API_KEY not configured - using mock responses');
     }
   }
 
@@ -41,7 +39,7 @@ class AnthropicClient {
     } = {}
   ): Promise<string> {
     if (!this.client) {
-      return this.getMockResponse(systemPrompt, userMessage);
+      throw new Error('ANTHROPIC_API_KEY is not configured. Please add it to your environment variables.');
     }
 
     const { temperature = 0.3, maxTokens = 2048 } = options;
@@ -108,47 +106,6 @@ class AnthropicClient {
     } catch (error) {
       throw new Error(`Failed to parse Claude JSON response: ${error}\nResponse: ${response.substring(0, 500)}`);
     }
-  }
-
-  /**
-   * Mock response for development without API key
-   */
-  private getMockResponse(systemPrompt: string, userMessage: string): string {
-    console.log('[Verity] Using mock response (no API key)');
-
-    // Return contextual mock based on the prompt type
-    if (systemPrompt.includes('extract') && systemPrompt.includes('claim')) {
-      return JSON.stringify([
-        {
-          text: userMessage.substring(0, 100),
-          type: 'factual',
-          confidence: 0.7,
-        }
-      ]);
-    }
-
-    if (systemPrompt.includes('classif')) {
-      return JSON.stringify({
-        category: 'partially_verified',
-        confidence: 0.6,
-        reasoning: 'Mock classification - API key not configured. This claim would need real verification.',
-      });
-    }
-
-    if (systemPrompt.includes('evidence')) {
-      return JSON.stringify([
-        {
-          text: 'Mock evidence point - configure ANTHROPIC_API_KEY for real analysis',
-          type: 'contextual',
-          sourceIndex: 0,
-        }
-      ]);
-    }
-
-    return JSON.stringify({
-      message: 'Mock response - ANTHROPIC_API_KEY not configured',
-      input_preview: userMessage.substring(0, 100),
-    });
   }
 
   private sleep(ms: number): Promise<void> {
