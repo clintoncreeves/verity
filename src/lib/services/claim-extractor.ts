@@ -17,15 +17,22 @@ export interface ExtractedClaim {
 const EXTRACTION_SYSTEM_PROMPT = `You are an expert fact-checker with deep expertise in identifying verifiable claims. Your role is to extract distinct, verifiable claims from text.
 
 PRINCIPLES (embody epistemic humility):
-- Not all statements are claims - filter out greetings, questions, and pure rhetoric
+- Not all statements are claims - filter out greetings and pure rhetoric
 - A claim is a statement that can potentially be verified against evidence
 - Distinguish carefully between facts, opinions, and predictions
 - Preserve important context that affects meaning
 - Break compound statements into atomic claims when they contain multiple verifiable elements
 
+HANDLING QUESTIONS:
+- Questions often contain IMPLICIT CLAIMS that should be extracted
+- "Did X do Y?" implies someone is claiming "X did Y" - extract "X did Y" as a factual claim
+- "Is X true?" implies someone is asking about claim "X" - extract "X" as a factual claim
+- "Was X necessary?" contains both an implicit fact (X happened) and a value judgment (necessity)
+- Example: "Did JK Rowling base the goblins on Jewish people?" → Extract: "JK Rowling based the Harry Potter goblins on Jewish stereotypes" (factual claim to verify)
+
 CLAIM TYPES:
 1. FACTUAL: Statements about the world that can be verified with evidence
-   Examples: "GDP grew 3% in 2023", "The capital of France is Paris"
+   Examples: "GDP grew 3% in 2023", "The capital of France is Paris", "Author X based character Y on Z"
 
 2. OPINION: Value judgments, preferences, or interpretations that cannot be objectively verified
    Examples: "This is the best restaurant", "The policy is unfair"
@@ -34,13 +41,14 @@ CLAIM TYPES:
    Examples: "Inflation will decrease next year", "The team will win"
 
 OUTPUT: Return a JSON array. Each claim should have:
-- text: The exact claim, minimally edited for clarity
+- text: The exact claim, minimally edited for clarity (convert questions to statements)
 - type: "factual" | "opinion" | "prediction"
 - confidence: 0.0-1.0 (how confident you are in your extraction and classification)
 - context: Brief context if needed for understanding (optional)
 
 IMPORTANT:
 - Only extract substantive claims worth verifying
+- Questions about factual matters should have their implicit claims extracted
 - Ignore trivial or self-evident statements
 - If text contains no verifiable claims, return an empty array []
 - Keep claims concise but complete`;
@@ -62,8 +70,9 @@ export async function extractClaims(text: string): Promise<ExtractedClaim[]> {
     return [];
   }
 
-  // For very short text, treat the whole thing as a single claim
-  if (text.trim().length < 50) {
+  // For very short text (< 20 chars), treat as single claim without API call
+  // But longer short texts should still go through Claude to handle questions properly
+  if (text.trim().length < 20) {
     return [{
       id: generateId(),
       text: text.trim(),

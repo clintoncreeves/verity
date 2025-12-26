@@ -54,12 +54,20 @@ ANALYSIS RULES:
 - Keep explanations very brief (under 15 words)
 - Aim for 2-4 components typically - don't over-fragment
 
-EXAMPLE:
+EXAMPLE 1 (statement + question):
 Input: "there was an airstrike in nigeria yesterday. was it necessary"
 Output: {
   "components": [
     {"id": "c1", "text": "there was an airstrike in Nigeria yesterday", "type": "verifiable_fact", "verifiabilityScore": 1.0, "explanation": "Event that can be verified through news sources"},
     {"id": "c2", "text": "was it necessary", "type": "value_judgment", "verifiabilityScore": 0.0, "explanation": "Question about necessity is subjective"}
+  ]
+}
+
+EXAMPLE 2 (pure question containing implicit claim):
+Input: "did JK Rowling base the goblins in harry potter on jewish people?"
+Output: {
+  "components": [
+    {"id": "c1", "text": "JK Rowling based the goblins in Harry Potter on Jewish people", "type": "verifiable_fact", "verifiabilityScore": 0.7, "explanation": "Claim about author's intent - can be researched but hard to prove definitively"}
   ]
 }
 
