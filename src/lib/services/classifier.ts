@@ -5,7 +5,7 @@
 
 import { anthropicClient } from './anthropic-client';
 import type { VerificationCategory, Source, ExistingFactCheck } from '@/types/verity';
-import { containsValueJudgmentKeywords, containsIntentClaim, isFalseVerdict } from '@/lib/utils/verdict-utils';
+import { containsValueJudgmentKeywords, containsIntentClaim, isFalseVerdict, isAncientHistoricalClaim } from '@/lib/utils/verdict-utils';
 import { CLAUDE_CONFIG } from '@/lib/config/constants';
 
 export interface ClassificationResult {
@@ -205,6 +205,20 @@ export async function classifyClaim(
         console.warn(`[Verity] Value judgment claim incorrectly classified as ${result.category}, correcting to opinion`);
         result.category = 'opinion';
         result.reasoning = `This claim contains subjective value judgments that cannot be objectively verified. ${result.reasoning}`;
+      }
+    }
+
+    // GUARD: Ancient historical claims should have capped confidence
+    // These rely on indirect evidence and historical methodology, not direct verification
+    if (isAncientHistoricalClaim(claim)) {
+      const maxConfidence = 0.75; // Cap at 75% for ancient history
+      if (result.confidence > maxConfidence) {
+        console.log(`[Verity] Ancient historical claim confidence capped from ${result.confidence} to ${maxConfidence}`);
+        result.confidence = maxConfidence;
+      }
+      // Add context about historical evidence limitations if not already present
+      if (!result.reasoning.toLowerCase().includes('historical') && !result.reasoning.toLowerCase().includes('ancient')) {
+        result.reasoning = `${result.reasoning} Note: Claims about ancient history rely on indirect evidence and scholarly interpretation rather than direct verification.`;
       }
     }
 

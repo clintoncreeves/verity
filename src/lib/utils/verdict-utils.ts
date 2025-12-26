@@ -139,3 +139,56 @@ export function containsIntentClaim(claim: string): boolean {
 export function isUnverifiableClaim(claim: string): boolean {
   return containsValueJudgmentKeywords(claim) || containsIntentClaim(claim);
 }
+
+/**
+ * Check if a claim is about ancient history (pre-500 CE)
+ * These claims rely on indirect evidence and historical methodology,
+ * so confidence should be capped even when expert consensus exists
+ */
+export function isAncientHistoricalClaim(claim: string): boolean {
+  const lowerClaim = claim.toLowerCase();
+
+  // Ancient figures and entities
+  const ancientSubjects = [
+    'jesus', 'christ', 'moses', 'abraham', 'muhammad', 'buddha', 'confucius',
+    'socrates', 'plato', 'aristotle', 'alexander the great', 'julius caesar',
+    'cleopatra', 'nero', 'augustus', 'constantine', 'attila',
+    'homer', 'virgil', 'herodotus', 'thucydides',
+    'pharaoh', 'ramses', 'tutankhamun', 'king david', 'king solomon',
+    'hannibal', 'spartacus', 'pontius pilate',
+  ];
+
+  // Ancient civilizations and periods
+  const ancientContexts = [
+    'ancient rome', 'ancient greece', 'ancient egypt', 'ancient persia',
+    'ancient israel', 'ancient mesopotamia', 'ancient china', 'ancient india',
+    'roman empire', 'greek empire', 'persian empire', 'egyptian empire',
+    'biblical', 'bronze age', 'iron age', 'classical antiquity',
+    'b.c.', 'bc', 'bce', 'b.c.e.',
+    '1st century', '2nd century', '3rd century', '4th century', '5th century',
+    'first century', 'second century', 'third century', 'fourth century', 'fifth century',
+  ];
+
+  // Check for ancient subjects
+  const hasAncientSubject = ancientSubjects.some(subject =>
+    new RegExp(`\\b${subject}\\b`, 'i').test(lowerClaim)
+  );
+
+  // Check for ancient contexts
+  const hasAncientContext = ancientContexts.some(context =>
+    lowerClaim.includes(context)
+  );
+
+  // Check for existence/historical claims about these subjects
+  const existencePatterns = [
+    /\bexist(?:ed|s|ence)?\b/i,
+    /\bwas (?:a |real|historical)\b/i,
+    /\blived\b/i,
+    /\bhistorical figure\b/i,
+    /\breally happened\b/i,
+  ];
+
+  const isExistenceClaim = existencePatterns.some(p => p.test(claim));
+
+  return (hasAncientSubject && isExistenceClaim) || hasAncientContext;
+}
