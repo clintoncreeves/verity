@@ -134,16 +134,18 @@ export function SourceCard({ source, className }: SourceCardProps) {
               <TooltipProvider delayDuration={200}>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Badge
-                      variant="outline"
-                      className={cn(
-                        "text-xs font-mono cursor-help flex items-center gap-1",
-                        getReliabilityColor(source.reliability)
-                      )}
-                    >
-                      Reliability {source.reliability}%
-                      <Info className="w-3 h-3 opacity-60" />
-                    </Badge>
+                    <button type="button" className="appearance-none bg-transparent border-0 p-0">
+                      <Badge
+                        variant="outline"
+                        className={cn(
+                          "text-xs font-mono cursor-help flex items-center gap-1",
+                          getReliabilityColor(source.reliability)
+                        )}
+                      >
+                        Reliability {source.reliability}%
+                        <Info className="w-3 h-3 opacity-60" />
+                      </Badge>
+                    </button>
                   </TooltipTrigger>
                   <TooltipContent side="top" className="max-w-xs whitespace-pre-line text-left">
                     <p className="text-xs">{RELIABILITY_EXPLANATION}</p>

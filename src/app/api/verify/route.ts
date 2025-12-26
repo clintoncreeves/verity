@@ -166,7 +166,7 @@ async function processVerification(request: z.infer<typeof VerificationRequestSc
     type,
     content,
     options: {
-      maxSources: 5,
+      // Uses VERIFICATION_CONFIG.MAX_SOURCES by default (currently 10)
       includeFactChecks: true,
       includeWebSearch: true,
     },
