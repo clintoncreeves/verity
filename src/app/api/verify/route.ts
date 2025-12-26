@@ -188,6 +188,8 @@ async function processVerification(request: z.infer<typeof VerificationRequestSc
       category: claim.category,
       confidence: claim.confidence,
       reasoning: claim.reasoning,
+      components: claim.components,
+      decompositionSummary: claim.decompositionSummary,
     })),
     sources: result.sources.map(source => ({
       name: source.name,
