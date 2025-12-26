@@ -5,6 +5,8 @@
 
 import { anthropicClient } from './anthropic-client';
 import type { VerificationCategory, Source, ExistingFactCheck } from '@/types/verity';
+import { containsValueJudgmentKeywords, isFalseVerdict } from '@/lib/utils/verdict-utils';
+import { CLAUDE_CONFIG } from '@/lib/config/constants';
 
 export interface ClassificationResult {
   category: VerificationCategory;
@@ -142,10 +144,15 @@ export async function classifyClaim(
       .replace('{SOURCES_SECTION}', sourcesSection)
       .replace('{FACTCHECKS_SECTION}', factChecksSection);
 
+    // Use lower temperature for claims with value judgment keywords (more consistent classification)
+    const config = containsValueJudgmentKeywords(claim)
+      ? CLAUDE_CONFIG.CLASSIFICATION_SENSITIVE
+      : CLAUDE_CONFIG.CLASSIFICATION;
+
     const result = await anthropicClient.sendMessageJSON<ClassificationResult>(
       CLASSIFICATION_SYSTEM_PROMPT,
       userMessage,
-      { temperature: 0.3, maxTokens: 1024 }
+      config
     );
 
     // Validate the category
@@ -169,10 +176,7 @@ export async function classifyClaim(
 
     // Check if we have existing fact-checks to inform fallback
     if (existingFactChecks.length > 0) {
-      const falseVerdicts = existingFactChecks.filter(fc =>
-        fc.verdict.toLowerCase().includes('false') ||
-        fc.verdict.toLowerCase().includes('pants on fire')
-      );
+      const falseVerdicts = existingFactChecks.filter(fc => isFalseVerdict(fc.verdict));
 
       if (falseVerdicts.length >= 2) {
         return {

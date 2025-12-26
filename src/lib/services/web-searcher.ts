@@ -87,25 +87,3 @@ export async function searchNews(
   return searchWeb(newsQuery, count);
 }
 
-/**
- * Search for academic/scientific sources
- */
-export async function searchAcademic(
-  query: string,
-  count: number = 5
-): Promise<WebSearchResponse> {
-  const academicQuery = `${query} site:edu OR site:nih.gov OR site:nature.com OR site:science.org`;
-  return searchWeb(academicQuery, count);
-}
-
-/**
- * Search for government sources
- */
-export async function searchGovernment(
-  query: string,
-  count: number = 5
-): Promise<WebSearchResponse> {
-  const govQuery = `${query} site:gov`;
-  return searchWeb(govQuery, count);
-}
-

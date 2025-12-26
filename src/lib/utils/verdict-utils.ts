@@ -1,0 +1,109 @@
+/**
+ * Verdict Utilities for Verity
+ * Shared functions for parsing and classifying fact-check verdicts
+ */
+
+/**
+ * Check if a verdict indicates the claim is false
+ */
+export function isFalseVerdict(verdict: string): boolean {
+  const v = verdict.toLowerCase().trim();
+  // Check for false verdicts, but exclude "mostly true" which contains "false" substring
+  return (
+    (v.includes('false') && !v.includes('mostly true') && !v.includes('partly true')) ||
+    v.includes('pants on fire') ||
+    v.includes('incorrect') ||
+    v.includes('debunked') ||
+    v.includes('hoax')
+  );
+}
+
+/**
+ * Check if a verdict indicates the claim is true
+ */
+export function isTrueVerdict(verdict: string): boolean {
+  const v = verdict.toLowerCase().trim();
+  return (
+    (v.includes('true') && !v.includes('false') && !v.includes('mostly false')) ||
+    v.includes('accurate') ||
+    v.includes('correct') ||
+    v.includes('confirmed')
+  );
+}
+
+/**
+ * Check if a verdict indicates mixed or partial truth
+ */
+export function isMixedVerdict(verdict: string): boolean {
+  const v = verdict.toLowerCase().trim();
+  return (
+    v.includes('mixed') ||
+    v.includes('partial') ||
+    v.includes('mostly true') ||
+    v.includes('mostly false') ||
+    v.includes('half true') ||
+    v.includes('half-true')
+  );
+}
+
+/**
+ * Classify a verdict into categories
+ */
+export function classifyVerdict(verdict: string): 'true' | 'false' | 'mixed' | 'unknown' {
+  if (isFalseVerdict(verdict)) return 'false';
+  if (isTrueVerdict(verdict)) return 'true';
+  if (isMixedVerdict(verdict)) return 'mixed';
+  return 'unknown';
+}
+
+/**
+ * Check if a claim text contains value judgment keywords
+ * These indicate subjective assessments that can't be objectively verified
+ */
+export function containsValueJudgmentKeywords(claim: string): boolean {
+  const keywords = [
+    'necessary',
+    'justified',
+    'should',
+    'must',
+    'appropriate',
+    'right',
+    'wrong',
+    'fair',
+    'unfair',
+    'good',
+    'bad',
+    'better',
+    'worse',
+    'needed',
+    'important',
+    'best',
+    'worst',
+  ];
+  const lowerClaim = claim.toLowerCase();
+  return keywords.some(kw => {
+    // Match whole words only to avoid false positives
+    const regex = new RegExp(`\\b${kw}\\b`, 'i');
+    return regex.test(lowerClaim);
+  });
+}
+
+/**
+ * Check if text is a question asking for a value judgment
+ */
+export function isValueJudgmentQuestion(text: string): boolean {
+  const lowerText = text.toLowerCase().trim();
+
+  // Check if it's a question
+  const isQuestion = lowerText.endsWith('?') ||
+    lowerText.startsWith('was ') ||
+    lowerText.startsWith('is ') ||
+    lowerText.startsWith('should ') ||
+    lowerText.startsWith('could ') ||
+    lowerText.startsWith('would ');
+
+  if (!isQuestion) return false;
+
+  // Check for value judgment keywords in question context
+  return containsValueJudgmentKeywords(text);
+}

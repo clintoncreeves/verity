@@ -8,8 +8,10 @@ import { classifyClaim, getCategoryLabel, getCategoryDescription } from './class
 import { decomposeClaim, type DecompositionResult } from './claim-decomposer';
 import { evaluateSource, type SourceEvaluation } from './source-evaluator';
 import { searchFactChecks } from './fact-check-searcher';
-import { searchWeb, searchNews, searchAcademic } from './web-searcher';
+import { searchWeb, searchNews } from './web-searcher';
 import { generateId, extractDomain } from '@/lib/utils/api-helpers';
+import { isFalseVerdict, isTrueVerdict } from '@/lib/utils/verdict-utils';
+import { VERIFICATION_CONFIG } from '@/lib/config/constants';
 import type {
   VerificationCategory,
   Source,
@@ -62,13 +64,38 @@ export interface FullVerificationResult {
 }
 
 /**
+ * Deduplicate sources by URL
+ */
+function deduplicateSources(sources: Source[]): Source[] {
+  const seen = new Set<string>();
+  return sources.filter(source => {
+    if (seen.has(source.url)) return false;
+    seen.add(source.url);
+    return true;
+  });
+}
+
+/**
+ * Deduplicate fact-checks by org+verdict
+ */
+function deduplicateFactChecks(factChecks: ExistingFactCheck[]): ExistingFactCheck[] {
+  const seen = new Set<string>();
+  return factChecks.filter(fc => {
+    const key = `${fc.org}-${fc.verdict}`.toLowerCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+/**
  * Main verification function - orchestrates the full pipeline
  */
 export async function verify(request: VerificationRequest): Promise<FullVerificationResult> {
   const startTime = Date.now();
   const { type, content, options = {} } = request;
   const {
-    maxSources = 5,
+    maxSources = VERIFICATION_CONFIG.MAX_SOURCES,
     includeFactChecks = true,
     includeWebSearch = true,
   } = options;
@@ -86,11 +113,25 @@ export async function verify(request: VerificationRequest): Promise<FullVerifica
   const extractedClaims = await extractClaims(content);
   console.log(`[Verity] Extracted ${extractedClaims.length} claims`);
 
-  // Step 3: Search for existing fact-checks
+  // Step 3: Search for existing fact-checks (per-claim for better accuracy)
   let existingFactChecks: ExistingFactCheck[] = [];
   if (includeFactChecks) {
     console.log('[Verity] Step 3: Searching existing fact-checks...');
-    existingFactChecks = await searchFactChecks(content);
+
+    // Search for the original content first
+    const contentFactChecks = await searchFactChecks(content);
+    existingFactChecks.push(...contentFactChecks);
+
+    // Also search per-claim for multi-claim inputs
+    if (extractedClaims.length > 1) {
+      for (const claim of extractedClaims.slice(0, 3)) { // Limit to first 3 claims
+        const claimFactChecks = await searchFactChecks(claim.text);
+        existingFactChecks.push(...claimFactChecks);
+      }
+    }
+
+    // Deduplicate fact-checks
+    existingFactChecks = deduplicateFactChecks(existingFactChecks);
     console.log(`[Verity] Found ${existingFactChecks.length} existing fact-checks`);
   }
 
@@ -105,7 +146,7 @@ export async function verify(request: VerificationRequest): Promise<FullVerifica
 
     // Convert search results to evaluated sources
     const allSearchResults = [...webResults.results, ...newsResults.results];
-    for (const result of allSearchResults.slice(0, maxSources)) {
+    for (const result of allSearchResults) {
       const evaluation = evaluateSource(result.url);
       allSources.push({
         name: extractDomain(result.url),
@@ -116,6 +157,9 @@ export async function verify(request: VerificationRequest): Promise<FullVerifica
         reliability: evaluation.reliabilityScore,
       });
     }
+
+    // Deduplicate and limit sources
+    allSources = deduplicateSources(allSources).slice(0, maxSources);
     console.log(`[Verity] Gathered ${allSources.length} sources`);
   }
 
@@ -149,7 +193,7 @@ export async function verify(request: VerificationRequest): Promise<FullVerifica
     existingFactChecks
   );
 
-  // Step 6: Generate summary
+  // Step 7: Generate summary
   const summary = generateSummary(verifiedClaims, existingFactChecks, overallCategory);
 
   // Compile all evidence
@@ -164,7 +208,7 @@ export async function verify(request: VerificationRequest): Promise<FullVerifica
   return {
     id: generateId(),
     timestamp: new Date().toISOString(),
-    input: { type, content: content.substring(0, 500) },
+    input: { type, content: content.substring(0, VERIFICATION_CONFIG.INPUT_TRUNCATE_LENGTH) },
     claims: verifiedClaims,
     existingFactChecks,
     overallCategory,
@@ -186,24 +230,39 @@ function computeOverallClassification(
   if (claims.length === 0) {
     return {
       overallCategory: 'partially_verified',
-      overallConfidence: 50,
+      overallConfidence: VERIFICATION_CONFIG.DEFAULT_CONFIDENCE,
     };
   }
 
-  // If we have existing fact-checks that say false, weight heavily
-  const falseFactChecks = factChecks.filter(fc =>
-    fc.verdict.toLowerCase().includes('false') ||
-    fc.verdict.toLowerCase().includes('pants on fire')
-  );
+  // Check fact-checks using shared utility
+  const falseFactChecks = factChecks.filter(fc => isFalseVerdict(fc.verdict));
+  const trueFactChecks = factChecks.filter(fc => isTrueVerdict(fc.verdict));
 
-  if (falseFactChecks.length >= 2) {
+  // If we have strong fact-check consensus, use it
+  if (falseFactChecks.length >= VERIFICATION_CONFIG.MIN_FACT_CHECKS_FOR_CONFIRMED) {
     return {
       overallCategory: 'confirmed_false',
       overallConfidence: 85,
     };
   }
 
-  // Count categories
+  // Single false fact-check should still influence result
+  if (falseFactChecks.length === 1 && trueFactChecks.length === 0) {
+    return {
+      overallCategory: 'likely_false',
+      overallConfidence: 75,
+    };
+  }
+
+  // Strong true consensus
+  if (trueFactChecks.length >= VERIFICATION_CONFIG.MIN_FACT_CHECKS_FOR_CONFIRMED) {
+    return {
+      overallCategory: 'verified_fact',
+      overallConfidence: 85,
+    };
+  }
+
+  // Count categories from claim classifications
   const categoryCounts: Record<string, number> = {};
   let totalConfidence = 0;
 
@@ -249,10 +308,17 @@ function generateSummary(
   const primaryClaim = claims[0];
   let summary = primaryClaim.reasoning;
 
-  // Add context about fact-checks if they exist
+  // Add context about fact-checks if they exist (with null safety)
   if (factChecks.length > 0) {
-    const orgs = factChecks.map(fc => fc.org).slice(0, 3).join(', ');
-    summary += ` Previously reviewed by ${orgs}.`;
+    const orgs = factChecks
+      .map(fc => fc.org)
+      .filter(org => org && org.length > 0) // Filter empty/null orgs
+      .slice(0, 3)
+      .join(', ');
+
+    if (orgs) {
+      summary += ` Previously reviewed by ${orgs}.`;
+    }
   }
 
   return summary;
@@ -270,15 +336,17 @@ export async function quickVerify(text: string): Promise<{
   const factChecks = await searchFactChecks(text);
 
   if (factChecks.length > 0) {
-    const falseCount = factChecks.filter(fc =>
-      fc.verdict.toLowerCase().includes('false')
-    ).length;
+    const falseCount = factChecks.filter(fc => isFalseVerdict(fc.verdict)).length;
 
-    if (falseCount >= 2) {
+    if (falseCount >= VERIFICATION_CONFIG.MIN_FACT_CHECKS_FOR_CONFIRMED) {
+      const orgs = factChecks
+        .map(fc => fc.org)
+        .filter(org => org && org.length > 0)
+        .join(', ');
       return {
         category: 'confirmed_false',
         confidence: 85,
-        summary: `This has been debunked by ${factChecks.map(fc => fc.org).join(', ')}.`,
+        summary: `This has been debunked by ${orgs}.`,
       };
     }
   }

@@ -8,17 +8,11 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
+import { RELIABILITY_CONFIG } from "@/lib/config/constants"
+import type { Source } from "@/types/verity"
 
-export interface Source {
-  name: string
-  title?: string
-  snippet?: string
-  url?: string
-  type: "article" | "academic" | "organization" | "other" | string
-  reliability: number // 0-100
-  domain?: string
-  publishDate?: string
-}
+// Re-export Source type for backward compatibility
+export type { Source }
 
 interface SourceCardProps {
   source: Source
@@ -72,16 +66,16 @@ export function SourceCard({ source, className }: SourceCardProps) {
   }
 
   const getReliabilityColor = (score: number) => {
-    if (score >= 80) return "text-teal-600 dark:text-teal-400"
-    if (score >= 60) return "text-blue-600 dark:text-blue-400"
-    if (score >= 40) return "text-amber-600 dark:text-amber-400"
+    if (score >= RELIABILITY_CONFIG.HIGH) return "text-teal-600 dark:text-teal-400"
+    if (score >= RELIABILITY_CONFIG.MEDIUM) return "text-blue-600 dark:text-blue-400"
+    if (score >= RELIABILITY_CONFIG.LOW) return "text-amber-600 dark:text-amber-400"
     return "text-slate-600 dark:text-slate-400"
   }
 
   const getReliabilityBg = (score: number) => {
-    if (score >= 80) return "bg-teal-600/20"
-    if (score >= 60) return "bg-blue-600/20"
-    if (score >= 40) return "bg-amber-600/20"
+    if (score >= RELIABILITY_CONFIG.HIGH) return "bg-teal-600/20"
+    if (score >= RELIABILITY_CONFIG.MEDIUM) return "bg-blue-600/20"
+    if (score >= RELIABILITY_CONFIG.LOW) return "bg-amber-600/20"
     return "bg-slate-600/20"
   }
 

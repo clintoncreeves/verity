@@ -96,6 +96,7 @@ export interface Source {
   type: string;
   url: string;
   reliability: number;
+  publishDate?: string;
 }
 
 export interface EvidencePoint {

@@ -125,15 +125,17 @@ export async function decomposeClaim(claimText: string): Promise<DecompositionRe
       'presupposition',
     ];
 
-    const components: ClaimComponent[] = response.components.map((c, index) => ({
-      id: c.id || `c${index + 1}`,
-      text: c.text,
-      type: validTypes.includes(c.type as ClaimComponentType)
-        ? (c.type as ClaimComponentType)
-        : 'verifiable_fact',
-      verifiabilityScore: Math.max(0, Math.min(1, c.verifiabilityScore || 0.5)),
-      explanation: c.explanation || '',
-    }));
+    const components: ClaimComponent[] = response.components
+      .filter(c => c.text && c.text.trim().length > 0) // Filter empty components
+      .map((c, index) => ({
+        id: c.id || `c${index + 1}`,
+        text: c.text.trim(),
+        type: validTypes.includes(c.type as ClaimComponentType)
+          ? (c.type as ClaimComponentType)
+          : 'verifiable_fact',
+        verifiabilityScore: Math.max(0, Math.min(1, c.verifiabilityScore || 0.5)),
+        explanation: c.explanation || '',
+      }));
 
     // Calculate summary
     const summary = calculateSummary(components);
