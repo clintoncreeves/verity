@@ -71,7 +71,7 @@ PRINCIPLES:
 - Acknowledge limitations in your reasoning
 - If evidence is insufficient, lean toward "partially_verified" rather than guessing
 
-CRITICAL - HANDLING MIXED CLAIMS:
+CRITICAL - HANDLING MIXED CLAIMS AND VALUE JUDGMENTS:
 - Many claims combine verifiable facts with value judgments or interpretations
 - Example: "The air strikes happened to protect Christians" - the strikes may be verifiable, but the PURPOSE/NECESSITY is an interpretation
 - Words like "necessary", "needed", "justified", "because", "in order to" often signal value judgments embedded in factual claims
@@ -79,10 +79,25 @@ CRITICAL - HANDLING MIXED CLAIMS:
 - "verified_fact" is ONLY for purely factual claims where every element can be independently verified
 - When in doubt about intent, motivation, or necessity, classify as "opinion" or "partially_verified"
 
+CRITICAL - QUESTIONS ASKING FOR VALUE JUDGMENTS:
+- Questions like "was that necessary?", "was it justified?", "should they have done X?", "was it right to...?" are asking for OPINIONS
+- Even if the underlying event is verifiable, the JUDGMENT being requested cannot be verified
+- These MUST be classified as "opinion" - NEVER as "verified_fact" or "expert_consensus"
+- The answer to "was X necessary?" is inherently subjective and depends on values, priorities, and interpretations
+- Look for question words (was, is, should, could, would) combined with value-laden terms (necessary, justified, right, wrong, good, bad, appropriate, needed)
+- Example: "The US did an air strike. Was that necessary?" - The air strike may be factual, but whether it was NECESSARY is an opinion
+- When a question asks for a judgment, evaluation, or assessment of rightness/necessity, classify as "opinion"
+
+EXPLAINING VERIFIABLE VS OPINION:
+- When a claim mixes facts with opinions, your reasoning MUST clearly separate them
+- Example reasoning: "The air strike on [date] is a verifiable event. However, whether it was 'necessary' is a value judgment that cannot be objectively verified - different people with different values would reach different conclusions."
+- Help users understand WHAT can be fact-checked vs WHAT is inherently subjective
+- This distinction is the core value Verity provides
+
 OUTPUT: Return JSON with:
 - category: one of the 8 categories above
 - confidence: 0.0-1.0 (your confidence in this classification)
-- reasoning: 2-4 sentences explaining your classification, citing specific evidence`;
+- reasoning: 2-4 sentences explaining your classification. For mixed claims, explicitly state which parts are verifiable facts and which parts are opinions/value judgments that cannot be verified.`;
 
 const CLASSIFICATION_USER_PROMPT = `Classify this claim based on the available evidence.
 
@@ -201,7 +216,7 @@ export function getCategoryDescription(category: VerificationCategory): string {
     verified_fact: 'This checks out. Multiple authoritative sources confirm it.',
     expert_consensus: 'Domain experts broadly agree on this.',
     partially_verified: 'Some parts hold up. Others need more context.',
-    opinion: 'This is an interpretation or value judgment, not a verifiable fact.',
+    opinion: 'This asks for or expresses a value judgment. The underlying events may be factual, but the assessment (necessary, justified, right, etc.) is subjective.',
     speculation: 'This is a prediction or hypothesis that cannot yet be verified.',
     disputed: 'Credible sources disagree on this. The evidence is mixed.',
     likely_false: 'Available evidence substantially contradicts this claim.',
