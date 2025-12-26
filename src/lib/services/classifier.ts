@@ -71,6 +71,14 @@ PRINCIPLES:
 - Acknowledge limitations in your reasoning
 - If evidence is insufficient, lean toward "partially_verified" rather than guessing
 
+CRITICAL - HANDLING MIXED CLAIMS:
+- Many claims combine verifiable facts with value judgments or interpretations
+- Example: "The air strikes happened to protect Christians" - the strikes may be verifiable, but the PURPOSE/NECESSITY is an interpretation
+- Words like "necessary", "needed", "justified", "because", "in order to" often signal value judgments embedded in factual claims
+- For such mixed claims, use "partially_verified" or "opinion" - NEVER "verified_fact"
+- "verified_fact" is ONLY for purely factual claims where every element can be independently verified
+- When in doubt about intent, motivation, or necessity, classify as "opinion" or "partially_verified"
+
 OUTPUT: Return JSON with:
 - category: one of the 8 categories above
 - confidence: 0.0-1.0 (your confidence in this classification)
