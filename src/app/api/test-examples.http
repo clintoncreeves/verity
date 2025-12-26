@@ -1,0 +1,98 @@
+### Verity API Test Examples
+### Use with REST Client extension in VS Code or similar HTTP client
+
+@baseUrl = http://localhost:3000/api
+
+### 1. Main Verification - Text
+POST {{baseUrl}}/verify
+Content-Type: application/json
+
+{
+  "type": "text",
+  "content": "The Earth is flat and NASA is hiding the truth"
+}
+
+### 2. Main Verification - URL
+POST {{baseUrl}}/verify
+Content-Type: application/json
+
+{
+  "type": "url",
+  "content": "https://example.com/article/claim"
+}
+
+### 3. Main Verification - Invalid (should fail)
+POST {{baseUrl}}/verify
+Content-Type: application/json
+
+{
+  "type": "invalid",
+  "content": ""
+}
+
+### 4. Image Verification
+POST {{baseUrl}}/verify/image
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
+
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="file"; filename="test.jpg"
+Content-Type: image/jpeg
+
+< /path/to/test-image.jpg
+------WebKitFormBoundary7MA4YWxkTrZu0gW--
+
+### 5. Fact-Check Search - Basic
+GET {{baseUrl}}/factchecks?claim=vaccines cause autism
+
+### 6. Fact-Check Search - With Pagination
+GET {{baseUrl}}/factchecks?claim=climate change&pageSize=5&languageCode=en
+
+### 7. Fact-Check Search - Invalid (should fail)
+GET {{baseUrl}}/factchecks?claim=ab
+
+### 8. Source Evaluation - Reuters
+GET {{baseUrl}}/sources/evaluate?url=https://reuters.com
+
+### 9. Source Evaluation - AP News
+GET {{baseUrl}}/sources/evaluate?url=https://apnews.com
+
+### 10. Source Evaluation - BBC
+GET {{baseUrl}}/sources/evaluate?url=https://bbc.com
+
+### 11. Source Evaluation - Unknown Source
+GET {{baseUrl}}/sources/evaluate?url=https://example-news-site.com
+
+### 12. Source Evaluation - Invalid URL (should fail)
+GET {{baseUrl}}/sources/evaluate?url=not-a-valid-url
+
+### 13. Rate Limit Test - Main Verification (run multiple times)
+POST {{baseUrl}}/verify
+Content-Type: application/json
+
+{
+  "type": "text",
+  "content": "Rate limit test claim number 1"
+}
+
+### 14. Rate Limit Test - Image Verification (run multiple times)
+POST {{baseUrl}}/verify/image
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
+
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="file"; filename="test.jpg"
+Content-Type: image/jpeg
+
+< /path/to/test-image.jpg
+------WebKitFormBoundary7MA4YWxkTrZu0gW--
+
+### 15. CORS Preflight - Main Verification
+OPTIONS {{baseUrl}}/verify
+
+### 16. CORS Preflight - Image Verification
+OPTIONS {{baseUrl}}/verify/image
+
+### 17. CORS Preflight - Fact Checks
+OPTIONS {{baseUrl}}/factchecks
+
+### 18. CORS Preflight - Source Evaluation
+OPTIONS {{baseUrl}}/sources/evaluate
