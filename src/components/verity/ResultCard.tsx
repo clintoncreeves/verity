@@ -15,6 +15,8 @@ export interface VerificationResult {
   sources: Source[]
   evidence: Evidence[]
   factChecks?: FactCheck[]
+  verificationId?: string
+  verifiedAt?: string
 }
 
 interface ResultCardProps {
@@ -80,6 +82,23 @@ export function ResultCard({ result, className }: ResultCardProps) {
 
       {result.factChecks && result.factChecks.length > 0 && (
         <FactCheckPanel factChecks={result.factChecks} />
+      )}
+
+      {/* Verification watermark */}
+      {result.verificationId && (
+        <div className="text-center text-xs text-muted-foreground/60 py-4 border-t border-muted/30">
+          <p>
+            Verification ID: <code className="font-mono">{result.verificationId}</code>
+          </p>
+          {result.verifiedAt && (
+            <p className="mt-1">
+              Generated: {new Date(result.verifiedAt).toLocaleString()}
+            </p>
+          )}
+          <p className="mt-2 text-muted-foreground/40">
+            This result cannot be used as authoritative evidence. Verify through official fact-checkers.
+          </p>
+        </div>
       )}
     </div>
   )

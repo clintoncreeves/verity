@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils"
 export interface Evidence {
   id: string
   text: string
-  type: "supporting" | "contradicting" | "neutral"
+  type: "supporting" | "contradicting" | "neutral" | "contextual"
 }
 
 interface EvidenceListProps {
@@ -31,6 +31,8 @@ export function EvidenceList({
       case "contradicting":
         return XCircle
       case "neutral":
+      case "contextual":
+      default:
         return MinusCircle
     }
   }
@@ -42,6 +44,8 @@ export function EvidenceList({
       case "contradicting":
         return "text-rose-600 dark:text-rose-400"
       case "neutral":
+      case "contextual":
+      default:
         return "text-slate-600 dark:text-slate-400"
     }
   }

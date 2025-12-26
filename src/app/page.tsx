@@ -77,6 +77,8 @@ export default function Home() {
           url: fc.url,
           summary: "",
         })) || [],
+        verificationId: apiResult.id,
+        verifiedAt: apiResult.verifiedAt,
       }
 
       setResult(transformedResult)
@@ -107,7 +109,7 @@ export default function Home() {
           {!result && (
             <div className="text-center py-12">
               <p className="text-muted-foreground">
-                Enter a claim, upload an image, or paste a URL to begin verification
+                Enter a claim or statement to begin verification
               </p>
             </div>
           )}
