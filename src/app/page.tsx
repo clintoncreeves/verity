@@ -4,7 +4,6 @@ import { useState } from "react"
 import { VerityHeader } from "@/components/verity/VerityHeader"
 import { InputSection } from "@/components/verity/InputSection"
 import { ResultCard, type VerificationResult } from "@/components/verity/ResultCard"
-import { DisclaimerBanner } from "@/components/verity/DisclaimerBanner"
 import type { VerificationCategory } from "@/lib/category-config"
 
 // Map backend categories to frontend categories
@@ -110,11 +109,7 @@ export default function Home() {
           <InputSection onVerify={handleVerify} isLoading={isVerifying} />
 
           {result && (
-            <>
-              <DisclaimerBanner variant="warning" className="max-w-3xl mx-auto" />
-              <ResultCard result={result} />
-              <DisclaimerBanner className="max-w-3xl mx-auto" />
-            </>
+            <ResultCard result={result} />
           )}
 
           {!result && (
