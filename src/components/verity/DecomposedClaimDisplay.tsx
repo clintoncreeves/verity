@@ -13,11 +13,19 @@ import {
   componentTypeConfig,
   getComponentTypeLetter,
 } from "@/lib/component-type-config"
+import { categoryConfig, type VerificationCategory } from "@/lib/category-config"
 import type { ClaimComponent, DecompositionSummary, ClaimComponentType } from "@/types/verity"
+
+// Verdict info passed from parent
+interface ClaimVerdict {
+  category: VerificationCategory
+  confidence: number
+}
 
 interface DecomposedClaimDisplayProps {
   components: ClaimComponent[]
   summary: DecompositionSummary
+  claimVerdict?: ClaimVerdict
   className?: string
 }
 
@@ -29,9 +37,31 @@ const TYPE_ORDER: ClaimComponentType[] = [
   'verifiable_fact',
 ]
 
+// Get a compact verdict badge for verifiable components
+function getVerdictBadge(verdict: ClaimVerdict) {
+  const config = categoryConfig[verdict.category]
+  const VerdictIcon = config.icon
+
+  // Determine badge color based on category
+  const isPositive = verdict.category === 'verified' || verdict.category === 'likely-verified'
+  const isNegative = verdict.category === 'false' || verdict.category === 'likely-false'
+  const isMixed = verdict.category === 'mixed-evidence' || verdict.category === 'partially-verified'
+
+  const badgeClass = cn(
+    "text-[10px] shrink-0 flex items-center gap-1",
+    isPositive && "text-teal-600 dark:text-teal-400 border-teal-300 dark:border-teal-600",
+    isNegative && "text-rose-600 dark:text-rose-400 border-rose-300 dark:border-rose-600",
+    isMixed && "text-amber-600 dark:text-amber-400 border-amber-300 dark:border-amber-600",
+    !isPositive && !isNegative && !isMixed && "text-slate-600 dark:text-slate-400 border-slate-300 dark:border-slate-600"
+  )
+
+  return { config, VerdictIcon, badgeClass, isPositive, isNegative }
+}
+
 export function DecomposedClaimDisplay({
   components,
   summary,
+  claimVerdict,
   className,
 }: DecomposedClaimDisplayProps) {
   const [hoveredComponent, setHoveredComponent] = useState<string | null>(null)
@@ -44,10 +74,13 @@ export function DecomposedClaimDisplay({
   const opinions = components.filter(c => c.type === 'value_judgment' || c.type === 'prediction')
   const facts = components.filter(c => c.type === 'verifiable_fact' || c.type === 'presupposition')
 
-  const renderComponent = (component: ClaimComponent) => {
+  const renderComponent = (component: ClaimComponent, showVerdict: boolean = false) => {
     const config = componentTypeConfig[component.type]
     const Icon = config.icon
     const isHovered = hoveredComponent === component.id
+
+    // Get verdict styling for verifiable components
+    const verdictInfo = showVerdict && claimVerdict ? getVerdictBadge(claimVerdict) : null
 
     return (
       <Tooltip key={component.id}>
@@ -73,12 +106,24 @@ export function DecomposedClaimDisplay({
                 {config.shortLabel}
               </p>
             </div>
-            <Badge
-              variant="outline"
-              className={cn("text-[10px] shrink-0", config.color)}
-            >
-              {getComponentTypeLetter(component.type)}
-            </Badge>
+            <div className="flex items-center gap-2 shrink-0">
+              {/* Show verdict badge for verifiable facts after verification */}
+              {verdictInfo && (
+                <Badge
+                  variant="outline"
+                  className={verdictInfo.badgeClass}
+                >
+                  <verdictInfo.VerdictIcon className="w-3 h-3" />
+                  {verdictInfo.config.label}
+                </Badge>
+              )}
+              <Badge
+                variant="outline"
+                className={cn("text-[10px]", config.color)}
+              >
+                {getComponentTypeLetter(component.type)}
+              </Badge>
+            </div>
           </div>
         </TooltipTrigger>
         <TooltipContent side="top" className="max-w-xs">
@@ -86,6 +131,11 @@ export function DecomposedClaimDisplay({
           <p className="text-xs text-muted-foreground mt-1">
             {component.explanation || config.description}
           </p>
+          {verdictInfo && (
+            <p className={cn("text-xs mt-2 font-medium", verdictInfo.badgeClass)}>
+              Verdict: {verdictInfo.config.label} ({Math.round(claimVerdict!.confidence * 100)}% confidence)
+            </p>
+          )}
         </TooltipContent>
       </Tooltip>
     )
@@ -127,7 +177,7 @@ export function DecomposedClaimDisplay({
               </div>
             </div>
             <div className="space-y-2">
-              {opinions.map(renderComponent)}
+              {opinions.map(c => renderComponent(c, false))}
             </div>
           </div>
         )}
@@ -165,7 +215,8 @@ export function DecomposedClaimDisplay({
               </div>
             </div>
             <div className="space-y-2">
-              {facts.map(renderComponent)}
+              {/* Show verdict badges only on verifiable_fact components, not presuppositions */}
+              {facts.map(c => renderComponent(c, c.type === 'verifiable_fact'))}
             </div>
           </div>
         )}

@@ -10,6 +10,12 @@ import type { VerificationCategory } from "@/lib/category-config"
 import { cn } from "@/lib/utils"
 import type { ClaimComponent, DecompositionSummary } from "@/types/verity"
 
+// Verdict info for showing on decomposed claim components
+export interface ClaimVerdict {
+  category: VerificationCategory
+  confidence: number
+}
+
 export interface VerificationResult {
   category: VerificationCategory
   confidence: number
@@ -24,6 +30,7 @@ export interface VerificationResult {
   decomposition?: {
     components: ClaimComponent[]
     summary: DecompositionSummary
+    claimVerdict?: ClaimVerdict
   }
 }
 
@@ -48,6 +55,7 @@ export function ResultCard({ result, className }: ResultCardProps) {
             <DecomposedClaimDisplay
               components={result.decomposition!.components}
               summary={result.decomposition!.summary}
+              claimVerdict={result.decomposition!.claimVerdict}
             />
           </CardContent>
         </Card>

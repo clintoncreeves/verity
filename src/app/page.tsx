@@ -57,6 +57,11 @@ export default function Home() {
         ? {
             components: primaryClaim.components,
             summary: primaryClaim.decompositionSummary,
+            // Include verification verdict - use claim-level if available, otherwise overall
+            claimVerdict: {
+              category: mapCategory(primaryClaim.category || apiResult.overallCategory),
+              confidence: primaryClaim.confidence || apiResult.overallConfidence || 0,
+            },
           }
         : undefined
 
