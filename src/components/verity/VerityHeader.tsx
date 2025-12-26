@@ -7,10 +7,7 @@ export function VerityHeader() {
         <VerityLogo variant="full" size="large" />
       </div>
       <p className="text-lg text-muted-foreground font-medium">
-        See what's solid.
-      </p>
-      <p className="text-sm text-muted-foreground/80 mt-2 max-w-md text-center">
-        Structure over style. Clarity is kindness.
+        Separate fact from framing.
       </p>
     </div>
   )
