@@ -15,15 +15,22 @@ interface InputSectionProps {
 export function InputSection({ onVerify, isLoading = false }: InputSectionProps) {
   const [textInput, setTextInput] = useState("")
 
+  const charCount = textInput.length
+  const charLimit = 2000
+  const isOverLimit = charCount > charLimit
+
   const handleTextSubmit = () => {
-    if (textInput.trim() && onVerify) {
+    if (textInput.trim() && onVerify && !isLoading && !isOverLimit) {
       onVerify({ type: "text", content: textInput })
     }
   }
 
-  const charCount = textInput.length
-  const charLimit = 2000
-  const isOverLimit = charCount > charLimit
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault()
+      handleTextSubmit()
+    }
+  }
 
   return (
     <Card className="w-full max-w-3xl mx-auto p-6">
@@ -33,6 +40,7 @@ export function InputSection({ onVerify, isLoading = false }: InputSectionProps)
             placeholder="Enter a claim, statement, or piece of information to verify..."
             value={textInput}
             onChange={(e) => setTextInput(e.target.value)}
+            onKeyDown={handleKeyDown}
             className="min-h-[200px] resize-none font-sans"
             maxLength={charLimit + 100}
             disabled={isLoading}
