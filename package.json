@@ -12,6 +12,7 @@
     "@anthropic-ai/sdk": "^0.71.2",
     "@radix-ui/react-progress": "^1.1.0",
     "@radix-ui/react-tabs": "^1.1.1",
+    "@radix-ui/react-tooltip": "^1.2.8",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^0.562.0",

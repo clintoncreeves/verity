@@ -5,6 +5,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 import { FileText, Image, Link2, Upload, Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -76,21 +82,54 @@ export function InputSection({ onVerify, isLoading = false }: InputSectionProps)
 
   return (
     <Card className="w-full max-w-3xl mx-auto">
-      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as typeof activeTab)} className="w-full">
-        <TabsList className="w-full grid grid-cols-3">
-          <TabsTrigger value="text" className="gap-2">
-            <FileText className="w-4 h-4" />
-            Text
-          </TabsTrigger>
-          <TabsTrigger value="image" className="gap-2">
-            <Image className="w-4 h-4" />
-            Image
-          </TabsTrigger>
-          <TabsTrigger value="url" className="gap-2">
-            <Link2 className="w-4 h-4" />
-            URL
-          </TabsTrigger>
-        </TabsList>
+      <TooltipProvider delayDuration={200}>
+        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as typeof activeTab)} className="w-full">
+          <TabsList className="w-full grid grid-cols-3">
+            <TabsTrigger value="text" className="gap-2">
+              <FileText className="w-4 h-4" />
+              Text
+            </TabsTrigger>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="flex-1">
+                  <TabsTrigger
+                    value="image"
+                    className="gap-2 w-full opacity-50 cursor-not-allowed"
+                    disabled
+                  >
+                    <Image className="w-4 h-4" />
+                    Image
+                  </TabsTrigger>
+                </span>
+              </TooltipTrigger>
+              <TooltipContent
+                side="bottom"
+                className="bg-slate-800 text-slate-100 border-slate-700"
+              >
+                <p className="text-sm">Coming soon</p>
+              </TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="flex-1">
+                  <TabsTrigger
+                    value="url"
+                    className="gap-2 w-full opacity-50 cursor-not-allowed"
+                    disabled
+                  >
+                    <Link2 className="w-4 h-4" />
+                    URL
+                  </TabsTrigger>
+                </span>
+              </TooltipTrigger>
+              <TooltipContent
+                side="bottom"
+                className="bg-slate-800 text-slate-100 border-slate-700"
+              >
+                <p className="text-sm">Coming soon</p>
+              </TooltipContent>
+            </Tooltip>
+          </TabsList>
 
         <TabsContent value="text" className="space-y-4 p-6">
           <div className="space-y-2">
@@ -219,7 +258,8 @@ export function InputSection({ onVerify, isLoading = false }: InputSectionProps)
             )}
           </Button>
         </TabsContent>
-      </Tabs>
+        </Tabs>
+      </TooltipProvider>
     </Card>
   )
 }
