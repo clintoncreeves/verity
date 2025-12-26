@@ -8,6 +8,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { rateLimit } from '@/lib/utils/rate-limiter';
 import { VerificationRequestSchema, createErrorResponse } from '@/lib/schemas';
+import { verify } from '@/lib/services/verification-orchestrator';
 
 const RATE_LIMIT = 10;
 const RATE_WINDOW = 60000; // 1 minute
@@ -94,44 +95,52 @@ export async function POST(request: NextRequest) {
 }
 
 /**
- * Process verification request
- * TODO: Replace with actual verification orchestrator
+ * Process verification request using the verification orchestrator
  */
 async function processVerification(request: z.infer<typeof VerificationRequestSchema>) {
   const { type, content } = request;
 
-  // Mock implementation - replace with actual verification logic
-  return {
-    id: crypto.randomUUID(),
+  // Call the real verification orchestrator
+  const result = await verify({
     type,
     content,
-    verifiedAt: new Date().toISOString(),
-    overallScore: 0.75,
-    verdict: 'PARTIALLY_TRUE' as const,
-    confidence: 0.8,
-    summary: 'This is a placeholder verification result. Integration with verification orchestrator pending.',
-    factors: [
-      {
-        name: 'Source Credibility',
-        score: 0.7,
-        weight: 0.3,
-        description: 'Analysis of source reliability',
-      },
-      {
-        name: 'Fact Check Match',
-        score: 0.8,
-        weight: 0.4,
-        description: 'Comparison with existing fact-checks',
-      },
-      {
-        name: 'Content Analysis',
-        score: 0.75,
-        weight: 0.3,
-        description: 'AI-based content analysis',
-      },
-    ],
-    sources: [],
-    relatedFactChecks: [],
+    options: {
+      maxSources: 5,
+      includeFactChecks: true,
+      includeWebSearch: true,
+    },
+  });
+
+  // Transform to API response format
+  return {
+    id: result.id,
+    type: result.input.type,
+    content: result.input.content,
+    verifiedAt: result.timestamp,
+    overallCategory: result.overallCategory,
+    overallConfidence: result.overallConfidence,
+    summary: result.summary,
+    claims: result.claims.map(claim => ({
+      id: claim.id,
+      text: claim.text,
+      type: claim.type,
+      category: claim.category,
+      confidence: claim.confidence,
+      reasoning: claim.reasoning,
+    })),
+    sources: result.sources.map(source => ({
+      name: source.name,
+      type: source.type,
+      url: source.url,
+      reliability: source.reliability,
+    })),
+    existingFactChecks: result.existingFactChecks.map(fc => ({
+      org: fc.org,
+      verdict: fc.verdict,
+      date: fc.date,
+      url: fc.url,
+    })),
+    evidence: result.evidence,
   };
 }
 

@@ -6,7 +6,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 
 // Claude Haiku 4.5 - optimized for speed and cost
-const MODEL = 'claude-haiku-4-5-20250121';
+const MODEL = 'claude-haiku-4-5-20251001';
 
 class AnthropicClient {
   private client: Anthropic | null = null;
