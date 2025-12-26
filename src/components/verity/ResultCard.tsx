@@ -37,8 +37,30 @@ export function ResultCard({ result, className }: ResultCardProps) {
 
   return (
     <div className={cn("space-y-6 w-full max-w-3xl mx-auto", className)}>
+      {/* Decomposition Card - Show first so users understand what's being verified */}
+      {hasDecomposition && (
+        <Card className="border-2">
+          <CardHeader className="pb-2">
+            <h3 className="text-lg font-semibold">Statement Breakdown</h3>
+            <DecompositionSummaryCard summary={result.decomposition!.summary} />
+          </CardHeader>
+          <CardContent className="pt-0">
+            <DecomposedClaimDisplay
+              components={result.decomposition!.components}
+              summary={result.decomposition!.summary}
+            />
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Verification Result Card - Applies to factual claims only */}
       <Card className="border-2">
         <CardHeader className="space-y-4">
+          {hasDecomposition && (
+            <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium">
+              Verification of factual claims
+            </p>
+          )}
           <div className="flex items-center justify-between gap-4">
             <CategoryBadge category={result.category} className="text-base px-4 py-2" />
             <ConfidenceBar confidence={result.confidence} className="flex-1 max-w-[200px]" />
@@ -51,20 +73,6 @@ export function ResultCard({ result, className }: ResultCardProps) {
         </CardHeader>
 
         <CardContent className="pt-0 space-y-6">
-          {/* Claim Decomposition - Primary Feature */}
-          {hasDecomposition && (
-            <>
-              <DecompositionSummaryCard summary={result.decomposition!.summary} />
-              <div>
-                <h4 className="text-sm font-medium mb-3 text-muted-foreground">Breakdown</h4>
-                <DecomposedClaimDisplay
-                  components={result.decomposition!.components}
-                  summary={result.decomposition!.summary}
-                />
-              </div>
-            </>
-          )}
-
           {result.evidence.length > 0 && !hasDecomposition && (
             <EvidenceList evidence={result.evidence} />
           )}

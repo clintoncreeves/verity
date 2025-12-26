@@ -109,6 +109,8 @@ export async function verify(request: VerificationRequest): Promise<FullVerifica
       const evaluation = evaluateSource(result.url);
       allSources.push({
         name: extractDomain(result.url),
+        title: result.title,
+        snippet: result.description || result.snippet,
         type: evaluation.type,
         url: result.url,
         reliability: evaluation.reliabilityScore,

@@ -1,12 +1,20 @@
-import { ExternalLink, Globe, FileText, Building2 } from "lucide-react"
+import { ExternalLink, Globe, FileText, Building2, Info } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
 
 export interface Source {
   name: string
+  title?: string
+  snippet?: string
   url?: string
-  type: "article" | "academic" | "organization" | "other"
+  type: "article" | "academic" | "organization" | "other" | string
   reliability: number // 0-100
   domain?: string
   publishDate?: string
@@ -17,14 +25,28 @@ interface SourceCardProps {
   className?: string
 }
 
+const RELIABILITY_EXPLANATION = `Reliability is based on:
+• Source type (government, academic, news wire, etc.)
+• Known track record for accuracy
+• Use of secure connections (HTTPS)
+• Recognition by fact-checkers
+
+Higher scores indicate more established, accountable sources.`
+
 export function SourceCard({ source, className }: SourceCardProps) {
   const getTypeIcon = () => {
     switch (source.type) {
       case "article":
+      case "Major News Outlet":
+      case "Local News":
         return FileText
       case "academic":
+      case "Academic/Research":
+      case "Scientific Publication":
         return Building2
       case "organization":
+      case "Government Source":
+      case "Nonprofit Organization":
         return Building2
       default:
         return Globe
@@ -32,6 +54,11 @@ export function SourceCard({ source, className }: SourceCardProps) {
   }
 
   const getTypeLabel = () => {
+    // Handle both old format and new format from source-evaluator
+    if (source.type.includes(" ")) {
+      // Already a label like "Major News Outlet"
+      return source.type
+    }
     switch (source.type) {
       case "article":
         return "Article"
@@ -61,61 +88,84 @@ export function SourceCard({ source, className }: SourceCardProps) {
   const TypeIcon = getTypeIcon()
 
   return (
-    <Card className={cn("hover:shadow-md transition-shadow", className)}>
-      <CardContent className="p-4">
-        <div className="flex items-start gap-4">
-          <div className="shrink-0">
-            <div className={cn(
-              "w-10 h-10 rounded-lg flex items-center justify-center",
-              getReliabilityBg(source.reliability)
-            )}>
-              <TypeIcon className={cn("w-5 h-5", getReliabilityColor(source.reliability))} />
+    <TooltipProvider delayDuration={200}>
+      <Card className={cn("hover:shadow-md transition-shadow", className)}>
+        <CardContent className="p-4">
+          <div className="flex items-start gap-4">
+            <div className="shrink-0">
+              <div className={cn(
+                "w-10 h-10 rounded-lg flex items-center justify-center",
+                getReliabilityBg(source.reliability)
+              )}>
+                <TypeIcon className={cn("w-5 h-5", getReliabilityColor(source.reliability))} />
+              </div>
             </div>
-          </div>
 
-          <div className="flex-1 min-w-0 space-y-2">
-            <div className="flex items-start justify-between gap-2">
-              <div className="flex-1 min-w-0">
-                <h4 className="font-medium text-sm leading-tight line-clamp-2">
-                  {source.name}
-                </h4>
-                {source.domain && (
+            <div className="flex-1 min-w-0 space-y-2">
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex-1 min-w-0">
+                  {/* Show title as headline if available, otherwise domain name */}
+                  <h4 className="font-medium text-sm leading-tight line-clamp-2">
+                    {source.title || source.name}
+                  </h4>
+                  {/* Show domain underneath the title */}
                   <p className="text-xs text-muted-foreground mt-1 font-mono">
-                    {source.domain}
+                    {source.name}
                   </p>
+                </div>
+                {source.url && (
+                  <a
+                    href={source.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-primary hover:text-primary/80 transition-colors shrink-0"
+                    aria-label="Open source"
+                  >
+                    <ExternalLink className="w-4 h-4" />
+                  </a>
                 )}
               </div>
-              {source.url && (
-                <a
-                  href={source.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-primary hover:text-primary/80 transition-colors shrink-0"
-                  aria-label="Open source"
-                >
-                  <ExternalLink className="w-4 h-4" />
-                </a>
+
+              {/* Show snippet if available */}
+              {source.snippet && (
+                <p className="text-xs text-muted-foreground line-clamp-2">
+                  {source.snippet}
+                </p>
               )}
-            </div>
 
-            <div className="flex items-center gap-2 flex-wrap">
-              <Badge variant="secondary" className="text-xs">
-                {getTypeLabel()}
-              </Badge>
+              <div className="flex items-center gap-2 flex-wrap">
+                <Badge variant="secondary" className="text-xs">
+                  {getTypeLabel()}
+                </Badge>
 
-              <Badge variant="outline" className={cn("text-xs font-mono", getReliabilityColor(source.reliability))}>
-                Reliability {source.reliability}%
-              </Badge>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Badge
+                      variant="outline"
+                      className={cn(
+                        "text-xs font-mono cursor-help flex items-center gap-1",
+                        getReliabilityColor(source.reliability)
+                      )}
+                    >
+                      Reliability {source.reliability}%
+                      <Info className="w-3 h-3 opacity-60" />
+                    </Badge>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" className="max-w-xs whitespace-pre-line text-left">
+                    <p className="text-xs">{RELIABILITY_EXPLANATION}</p>
+                  </TooltipContent>
+                </Tooltip>
 
-              {source.publishDate && (
-                <span className="text-xs text-muted-foreground font-mono ml-auto">
-                  {source.publishDate}
-                </span>
-              )}
+                {source.publishDate && (
+                  <span className="text-xs text-muted-foreground font-mono ml-auto">
+                    {source.publishDate}
+                  </span>
+                )}
+              </div>
             </div>
           </div>
-        </div>
-      </CardContent>
-    </Card>
+        </CardContent>
+      </Card>
+    </TooltipProvider>
   )
 }

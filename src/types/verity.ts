@@ -91,6 +91,8 @@ export interface ExistingFactCheck {
 // Simplified source for display
 export interface Source {
   name: string;
+  title?: string;
+  snippet?: string;
   type: string;
   url: string;
   reliability: number;

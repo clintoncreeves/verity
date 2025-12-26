@@ -193,6 +193,8 @@ async function processVerification(request: z.infer<typeof VerificationRequestSc
     })),
     sources: result.sources.map(source => ({
       name: source.name,
+      title: source.title,
+      snippet: source.snippet,
       type: source.type,
       url: source.url,
       reliability: source.reliability,
