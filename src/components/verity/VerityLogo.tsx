@@ -1,5 +1,17 @@
 import React from 'react';
 
+// Verification states that affect the V-void fill
+export type VerificationState =
+  | 'default'      // Empty void - no verification yet
+  | 'verified'     // Fully filled - solid ground found
+  | 'likely-verified'
+  | 'partially-verified'  // Partially filled
+  | 'mixed-evidence'
+  | 'unverifiable' // Empty with question - still searching
+  | 'likely-false'
+  | 'false'        // Void with break/crack
+  | 'satire-parody';
+
 interface VerityLogoProps {
   variant?: 'full' | 'symbol' | 'wordmark';
   size?: 'small' | 'medium' | 'large' | 'custom';
@@ -7,6 +19,7 @@ interface VerityLogoProps {
   darkMode?: boolean;
   inverted?: boolean; // for use on colored backgrounds
   className?: string;
+  state?: VerificationState; // Dynamic state based on verification result
 }
 
 /**
@@ -21,7 +34,8 @@ export function VerityLogo({
   customSize,
   darkMode = false,
   inverted = false,
-  className = ''
+  className = '',
+  state = 'default'
 }: VerityLogoProps) {
   const sizeMap: Record<'small' | 'medium' | 'large', number> = {
     small: 28,
@@ -44,49 +58,128 @@ export function VerityLogo({
     return '#1e293b';
   };
 
+  // Get fill color based on verification state (for the V-void fill)
+  const getStateColor = (): string | null => {
+    switch (state) {
+      case 'verified':
+      case 'likely-verified':
+        return '#0D9488'; // Teal - solid ground
+      case 'partially-verified':
+      case 'mixed-evidence':
+        return '#F59E0B'; // Amber - partial
+      case 'unverifiable':
+        return '#64748B'; // Gray - uncertain
+      case 'likely-false':
+      case 'false':
+        return '#BE123C'; // Crimson - contradicted
+      case 'satire-parody':
+        return '#8B5CF6'; // Purple - satire
+      default:
+        return null; // No fill for default state
+    }
+  };
+
+  // Calculate fill level (0-1) based on state
+  const getFillLevel = (): number => {
+    switch (state) {
+      case 'verified':
+        return 1.0;
+      case 'likely-verified':
+        return 0.85;
+      case 'partially-verified':
+        return 0.5;
+      case 'mixed-evidence':
+        return 0.4;
+      case 'unverifiable':
+        return 0.1; // Just a hint
+      case 'likely-false':
+        return 0.7;
+      case 'false':
+        return 1.0;
+      case 'satire-parody':
+        return 0.6;
+      default:
+        return 0;
+    }
+  };
+
   const primaryColor = getPrimaryColor();
   const textColor = getTextColor();
+  const stateColor = getStateColor();
+  const fillLevel = getFillLevel();
 
   // Symbol Component - Square frame with V-shaped void
-  const Symbol = ({ symbolSize }: { symbolSize: number }) => (
-    <svg
-      width={symbolSize}
-      height={symbolSize}
-      viewBox="0 0 100 100"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      className={className}
-    >
-      {/* Outer square frame */}
-      <rect
-        x="20"
-        y="20"
-        width="60"
-        height="60"
-        stroke={primaryColor}
-        strokeWidth="2.5"
-        fill="none"
-      />
+  // The void fills based on verification state - representing "finding solid ground"
+  const Symbol = ({ symbolSize }: { symbolSize: number }) => {
+    // The V goes from y=80 (bottom) to y=55 (apex) = 25 units height
+    const voidHeight = 25;
 
-      {/* V-shaped void cut from bottom */}
-      <path
-        d="M 35 80 L 50 55 L 65 80"
-        stroke={primaryColor}
-        strokeWidth="2.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
+    return (
+      <svg
+        width={symbolSize}
+        height={symbolSize}
+        viewBox="0 0 100 100"
         fill="none"
-      />
+        xmlns="http://www.w3.org/2000/svg"
+        className={className}
+      >
+        {/* Outer square frame */}
+        <rect
+          x="20"
+          y="20"
+          width="60"
+          height="60"
+          stroke={primaryColor}
+          strokeWidth="2.5"
+          fill="none"
+        />
 
-      {/* Small marker at apex showing the gap */}
-      <circle
-        cx="50"
-        cy="55"
-        r="2"
-        fill={primaryColor}
-      />
-    </svg>
-  );
+        {/* V-void fill - represents solid ground found */}
+        {stateColor && fillLevel > 0 && (
+          <path
+            d={`M 35 80 L 50 ${80 - voidHeight * Math.min(fillLevel, 1)} L 65 80 Z`}
+            fill={stateColor}
+            opacity={0.3 + (fillLevel * 0.4)} // 0.3 to 0.7 opacity
+            style={{ transition: 'all 0.5s ease-out' }}
+          />
+        )}
+
+        {/* V-shaped void outline */}
+        <path
+          d="M 35 80 L 50 55 L 65 80"
+          stroke={stateColor || primaryColor}
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          fill="none"
+          style={{ transition: 'stroke 0.3s ease' }}
+        />
+
+        {/* Apex marker - changes based on state */}
+        <circle
+          cx="50"
+          cy="55"
+          r={state === 'default' ? 2 : 3}
+          fill={stateColor || primaryColor}
+          style={{ transition: 'all 0.3s ease' }}
+        />
+
+        {/* For "false" state, add a subtle break/crack indicator */}
+        {(state === 'false' || state === 'likely-false') && (
+          <line
+            x1="47"
+            y1="67"
+            x2="53"
+            y2="63"
+            stroke={stateColor || undefined}
+            strokeWidth="2"
+            strokeLinecap="round"
+            opacity={0.6}
+          />
+        )}
+      </svg>
+    );
+  };
 
   // Wordmark Component
   const Wordmark = ({ height }: { height: number }) => (
