@@ -45,8 +45,6 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const validated = VerificationRequestSchema.parse(body);
 
-    // TODO: Implement verification orchestrator
-    // For now, return a mock response structure
     const result = await processVerification(validated);
 
     return NextResponse.json(

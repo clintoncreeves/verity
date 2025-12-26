@@ -126,47 +126,13 @@ export async function POST(request: NextRequest) {
 
 /**
  * Analyze image for manipulation and metadata
- * TODO: Replace with actual image analysis implementation
+ * Requires integration with image analysis services
  */
 async function analyzeImage(buffer: Buffer, mimeType: string, filename: string) {
-  // Mock implementation - replace with actual image analysis logic
-  return {
-    id: crypto.randomUUID(),
-    filename,
-    mimeType,
-    size: buffer.length,
-    analyzedAt: new Date().toISOString(),
-    manipulationScore: 0.15,
-    isLikelyManipulated: false,
-    confidence: 0.85,
-    findings: [
-      {
-        type: 'metadata',
-        severity: 'info',
-        description: 'Original metadata extracted successfully',
-        details: {
-          software: 'Unknown',
-          created: null,
-          gpsLocation: null,
-        },
-      },
-      {
-        type: 'manipulation',
-        severity: 'low',
-        description: 'No significant manipulation detected',
-        details: {
-          cloneDetection: 0.1,
-          compressionAnomalies: 0.05,
-          noiseInconsistencies: 0.2,
-        },
-      },
-    ],
-    reverseImageSearch: {
-      performed: false,
-      results: [],
-      message: 'Reverse image search not yet implemented',
-    },
-  };
+  // This endpoint requires external API integration for image analysis
+  throw new Error(
+    'Image verification API not configured. This feature requires integration with image analysis services.'
+  );
 }
 
 // OPTIONS handler for CORS preflight
