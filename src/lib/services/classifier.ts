@@ -183,11 +183,16 @@ export async function classifyClaim(
     // GUARD: Intent claims should never be verified_fact or expert_consensus
     // Intent/motivation cannot be definitively proven without explicit statement from the subject
     if (containsIntentClaim(claim)) {
-      if (result.category === 'verified_fact' || result.category === 'expert_consensus') {
+      const wasIncorrectlyClassified = result.category === 'verified_fact' || result.category === 'expert_consensus';
+
+      if (wasIncorrectlyClassified) {
         console.warn(`[Verity] Intent claim incorrectly classified as ${result.category}, correcting to opinion`);
         result.category = 'opinion';
-        result.reasoning = `This claim involves someone's intent or motivation, which cannot be definitively verified without their explicit statement. ${result.reasoning}`;
       }
+
+      // Replace reasoning entirely for intent claims - don't mix in suggestions about "verifiable" aspects
+      result.reasoning = `This claim is about someone's intent, motivation, or creative inspiration. Without an explicit statement from the person involved, their true intentions cannot be verified. Observable similarities or patterns may exist, but they do not prove intent - only the person can confirm what they intended.`;
+
       // Cap confidence for intent claims - we can never be highly confident about intent
       if (result.confidence > 0.6) {
         result.confidence = 0.5;
