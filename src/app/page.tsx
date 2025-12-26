@@ -5,6 +5,23 @@ import { VerityHeader } from "@/components/verity/VerityHeader"
 import { InputSection } from "@/components/verity/InputSection"
 import { ResultCard, type VerificationResult } from "@/components/verity/ResultCard"
 import { DisclaimerBanner } from "@/components/verity/DisclaimerBanner"
+import type { VerificationCategory } from "@/lib/category-config"
+
+// Map backend categories to frontend categories
+const categoryMap: Record<string, VerificationCategory> = {
+  verified_fact: "verified",
+  expert_consensus: "likely-verified",
+  partially_verified: "partially-verified",
+  opinion: "unverifiable",
+  speculation: "unverifiable",
+  disputed: "mixed-evidence",
+  likely_false: "likely-false",
+  confirmed_false: "false",
+}
+
+function mapCategory(backendCategory: string): VerificationCategory {
+  return categoryMap[backendCategory] || "unverifiable"
+}
 
 export default function Home() {
   const [isVerifying, setIsVerifying] = useState(false)
@@ -35,7 +52,7 @@ export default function Home() {
       // Transform API response to component format
       const apiResult = data.data
       const transformedResult: VerificationResult = {
-        category: apiResult.overallCategory,
+        category: mapCategory(apiResult.overallCategory),
         confidence: apiResult.overallConfidence,
         summary: apiResult.summary,
         reasoning: apiResult.claims?.[0]?.reasoning || "",
