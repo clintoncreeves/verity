@@ -75,30 +75,29 @@ export async function verify(request: VerificationRequest): Promise<FullVerifica
 
   console.log(`[Verity] Starting verification for ${type} input`);
 
-  // Step 1: Extract claims from the input
-  console.log('[Verity] Step 1: Extracting claims...');
+  // Step 1: Decompose the ORIGINAL input into components (facts vs opinions)
+  // This must happen BEFORE claim extraction, which filters out opinions
+  console.log('[Verity] Step 1: Decomposing input into components...');
+  const inputDecomposition = await decomposeClaim(content);
+  console.log(`[Verity] Found ${inputDecomposition.components.length} components`);
+
+  // Step 2: Extract verifiable claims from the input
+  console.log('[Verity] Step 2: Extracting claims...');
   const extractedClaims = await extractClaims(content);
   console.log(`[Verity] Extracted ${extractedClaims.length} claims`);
 
-  // Step 1.5: Decompose claims into components (facts vs opinions)
-  console.log('[Verity] Step 1.5: Decomposing claims...');
-  const decompositions: DecompositionResult[] = await Promise.all(
-    extractedClaims.map(claim => decomposeClaim(claim.text))
-  );
-  console.log(`[Verity] Decomposed ${decompositions.length} claims`);
-
-  // Step 2: Search for existing fact-checks
+  // Step 3: Search for existing fact-checks
   let existingFactChecks: ExistingFactCheck[] = [];
   if (includeFactChecks) {
-    console.log('[Verity] Step 2: Searching existing fact-checks...');
+    console.log('[Verity] Step 3: Searching existing fact-checks...');
     existingFactChecks = await searchFactChecks(content);
     console.log(`[Verity] Found ${existingFactChecks.length} existing fact-checks`);
   }
 
-  // Step 3: Gather sources from web search
+  // Step 4: Gather sources from web search
   let allSources: Source[] = [];
   if (includeWebSearch) {
-    console.log('[Verity] Step 3: Searching for sources...');
+    console.log('[Verity] Step 4: Searching for sources...');
     const [webResults, newsResults] = await Promise.all([
       searchWeb(content, Math.ceil(maxSources / 2)),
       searchNews(content, Math.ceil(maxSources / 2)),
@@ -118,13 +117,12 @@ export async function verify(request: VerificationRequest): Promise<FullVerifica
     console.log(`[Verity] Gathered ${allSources.length} sources`);
   }
 
-  // Step 4: Verify each claim
-  console.log('[Verity] Step 4: Verifying claims...');
+  // Step 5: Verify each claim
+  console.log('[Verity] Step 5: Verifying claims...');
   const verifiedClaims: VerifiedClaim[] = [];
 
   for (let i = 0; i < extractedClaims.length; i++) {
     const claim = extractedClaims[i];
-    const decomposition = decompositions[i];
     const classification = await classifyClaim(claim.text, allSources, existingFactChecks);
 
     verifiedClaims.push({
@@ -136,14 +134,14 @@ export async function verify(request: VerificationRequest): Promise<FullVerifica
       reasoning: classification.reasoning,
       sources: allSources,
       evidence: [classification.reasoning],
-      // Include decomposition data
-      components: decomposition.components,
-      decompositionSummary: decomposition.summary,
+      // Include decomposition from original input (attached to first claim)
+      components: i === 0 ? inputDecomposition.components : undefined,
+      decompositionSummary: i === 0 ? inputDecomposition.summary : undefined,
     });
   }
 
-  // Step 5: Determine overall classification
-  console.log('[Verity] Step 5: Computing overall assessment...');
+  // Step 6: Determine overall classification
+  console.log('[Verity] Step 6: Computing overall assessment...');
   const { overallCategory, overallConfidence } = computeOverallClassification(
     verifiedClaims,
     existingFactChecks
@@ -155,8 +153,8 @@ export async function verify(request: VerificationRequest): Promise<FullVerifica
   // Compile all evidence
   const allEvidence = verifiedClaims.flatMap(c => c.evidence);
 
-  // Compute overall decomposition summary
-  const overallDecomposition = computeOverallDecomposition(decompositions);
+  // Use the input decomposition as the overall decomposition
+  const overallDecomposition = inputDecomposition.summary;
 
   const duration = Date.now() - startTime;
   console.log(`[Verity] Verification complete in ${duration}ms`);
@@ -173,57 +171,6 @@ export async function verify(request: VerificationRequest): Promise<FullVerifica
     sources: allSources,
     evidence: allEvidence,
     overallDecomposition,
-  };
-}
-
-/**
- * Compute overall decomposition summary from all claims
- */
-function computeOverallDecomposition(
-  decompositions: DecompositionResult[]
-): DecompositionSummary {
-  if (decompositions.length === 0) {
-    return {
-      totalComponents: 0,
-      verifiableFacts: 0,
-      valueJudgments: 0,
-      predictions: 0,
-      presuppositions: 0,
-      overallVerifiability: 0,
-    };
-  }
-
-  const totals = decompositions.reduce(
-    (acc, d) => ({
-      totalComponents: acc.totalComponents + d.summary.totalComponents,
-      verifiableFacts: acc.verifiableFacts + d.summary.verifiableFacts,
-      valueJudgments: acc.valueJudgments + d.summary.valueJudgments,
-      predictions: acc.predictions + d.summary.predictions,
-      presuppositions: acc.presuppositions + d.summary.presuppositions,
-      weightedVerifiability:
-        acc.weightedVerifiability +
-        d.summary.overallVerifiability * d.summary.totalComponents,
-    }),
-    {
-      totalComponents: 0,
-      verifiableFacts: 0,
-      valueJudgments: 0,
-      predictions: 0,
-      presuppositions: 0,
-      weightedVerifiability: 0,
-    }
-  );
-
-  return {
-    totalComponents: totals.totalComponents,
-    verifiableFacts: totals.verifiableFacts,
-    valueJudgments: totals.valueJudgments,
-    predictions: totals.predictions,
-    presuppositions: totals.presuppositions,
-    overallVerifiability:
-      totals.totalComponents > 0
-        ? totals.weightedVerifiability / totals.totalComponents
-        : 0,
   };
 }
 
