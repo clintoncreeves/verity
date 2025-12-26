@@ -102,10 +102,10 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-background">
-      <main className="container mx-auto px-4 py-8 max-w-6xl">
+      <main className="container mx-auto px-4 py-4 max-w-3xl">
         <VerityHeader />
 
-        <div className="space-y-8 mt-8">
+        <div className="space-y-6 mt-4">
           <InputSection onVerify={handleVerify} isLoading={isVerifying} />
 
           {result && (
@@ -113,11 +113,9 @@ export default function Home() {
           )}
 
           {!result && (
-            <div className="text-center py-12">
-              <p className="text-muted-foreground">
-                Enter a claim or statement to begin verification
-              </p>
-            </div>
+            <p className="text-center text-sm text-muted-foreground py-4">
+              Enter a claim or statement to begin verification
+            </p>
           )}
         </div>
       </main>

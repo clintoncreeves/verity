@@ -33,15 +33,15 @@ export function InputSection({ onVerify, isLoading = false }: InputSectionProps)
   }
 
   return (
-    <Card className="w-full max-w-3xl mx-auto p-6">
-      <div className="space-y-4">
-        <div className="space-y-2">
+    <Card className="w-full max-w-3xl mx-auto p-4">
+      <div className="space-y-3">
+        <div className="space-y-1.5">
           <Textarea
             placeholder="Enter a claim, statement, or piece of information to verify..."
             value={textInput}
             onChange={(e) => setTextInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            className="min-h-[200px] resize-none font-sans"
+            className="min-h-[120px] resize-none font-sans"
             maxLength={charLimit + 100}
             disabled={isLoading}
           />
