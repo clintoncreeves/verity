@@ -49,17 +49,6 @@ export function ResultCard({ result, className }: ResultCardProps) {
           </div>
         </CardHeader>
 
-        {result.reasoning && (
-          <CardContent className="pt-0">
-            <div className="rounded-lg bg-muted/30 p-4 border">
-              <h4 className="text-sm font-medium mb-2">Analysis</h4>
-              <p className="text-sm leading-relaxed text-muted-foreground">
-                {result.reasoning}
-              </p>
-            </div>
-          </CardContent>
-        )}
-
         <CardContent className="pt-0 space-y-4">
           {result.evidence.length > 0 && (
             <EvidenceList evidence={result.evidence} />

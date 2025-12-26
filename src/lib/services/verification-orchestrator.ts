@@ -204,29 +204,26 @@ function computeOverallClassification(
 
 /**
  * Generate human-readable summary in brand voice
+ * Uses the classifier's reasoning which explains what's verifiable vs what's opinion
  */
 function generateSummary(
   claims: VerifiedClaim[],
   factChecks: ExistingFactCheck[],
   category: VerificationCategory
 ): string {
-  const categoryDesc = getCategoryDescription(category);
-
   if (claims.length === 0) {
     return "We couldn't identify specific claims to verify in this input.";
   }
 
-  let summary = categoryDesc;
+  // Use the classifier's reasoning directly - it now explains what's fact vs opinion
+  // This is more specific than the generic category description
+  const primaryClaim = claims[0];
+  let summary = primaryClaim.reasoning;
 
-  // Add context about fact-checks
+  // Add context about fact-checks if they exist
   if (factChecks.length > 0) {
     const orgs = factChecks.map(fc => fc.org).slice(0, 3).join(', ');
-    summary += ` This claim has been previously reviewed by ${orgs}.`;
-  }
-
-  // Add context about claim count
-  if (claims.length > 1) {
-    summary += ` We analyzed ${claims.length} distinct claims in this content.`;
+    summary += ` Previously reviewed by ${orgs}.`;
   }
 
   return summary;
