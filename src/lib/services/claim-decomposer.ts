@@ -29,8 +29,9 @@ COMPONENT TYPES:
 2. value_judgment
    - Subjective assessments, moral claims, quality evaluations
    - Cannot be objectively verified - depends on values/perspective
-   - Examples: "necessary", "good", "unfair", "the best", "appropriate", "justified"
-   - Keywords: "should", "must", "need", "right", "wrong", "better", "worse", "necessary"
+   - IMPORTANT: Questions asking for value judgments ARE value judgments (e.g., "was it necessary?" = value judgment)
+   - Examples: "necessary", "good", "unfair", "the best", "appropriate", "justified", "was it right?", "is it fair?"
+   - Keywords: "should", "must", "need", "right", "wrong", "better", "worse", "necessary", "justified", "appropriate"
 
 3. prediction
    - Future-oriented statements that cannot yet be verified
@@ -45,11 +46,13 @@ COMPONENT TYPES:
    - Look for: assumed context, implied prior events, unstated premises
 
 ANALYSIS RULES:
-- Break the claim into meaningful semantic components (phrases/clauses, not individual words)
+- Break the claim into meaningful semantic components (complete phrases/clauses, NOT individual words like "in Nigeria")
+- Group related factual elements together (e.g., "there was an airstrike in Nigeria yesterday" = 1 fact, not 3)
 - Focus on what users need to understand: "This part we can check, this part is opinion"
+- Questions that ask for value judgments count as value_judgment type
 - Assign verifiabilityScore: 1.0 for pure facts, 0.0 for pure opinions, 0.3-0.7 for mixed
 - Keep explanations very brief (under 15 words)
-- A claim may have 1-6 components typically
+- Aim for 2-4 components typically - don't over-fragment
 
 OUTPUT FORMAT:
 Return a JSON object with:

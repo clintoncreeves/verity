@@ -138,25 +138,6 @@ export function DecomposedClaimDisplay({
         </div>
       </TooltipProvider>
 
-      {/* Legend */}
-      <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground pt-2 border-t">
-        <span className="flex items-center gap-1">
-          <span className="font-mono bg-teal-100 dark:bg-teal-900/40 px-1 rounded">F</span>
-          = Fact
-        </span>
-        <span className="flex items-center gap-1">
-          <span className="font-mono bg-purple-100 dark:bg-purple-900/40 px-1 rounded">O</span>
-          = Opinion
-        </span>
-        <span className="flex items-center gap-1">
-          <span className="font-mono bg-amber-100 dark:bg-amber-900/40 px-1 rounded">P</span>
-          = Prediction
-        </span>
-        <span className="flex items-center gap-1">
-          <span className="font-mono bg-slate-100 dark:bg-slate-800/40 px-1 rounded">A</span>
-          = Assumed
-        </span>
-      </div>
     </div>
   )
 }
