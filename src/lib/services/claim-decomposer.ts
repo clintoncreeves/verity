@@ -80,6 +80,17 @@ CRITICAL - INTENT AND MOTIVATION CLAIMS:
 - Example: "The goblins share visual characteristics with antisemitic caricatures" = verifiable_fact (observable)
 - Example: "JK Rowling based the goblins on Jewish stereotypes" = value_judgment (claims intent)
 
+CRITICAL - FACTUAL CLAIMS ABOUT EVENTS (NOT value judgments):
+- Claims that something DID or DID NOT happen are verifiable_fact, even if controversial
+- Claims about fraud, theft, manipulation, or wrongdoing ARE verifiable - they can be investigated and proven true or false
+- "The election was stolen" = verifiable_fact (claim about an event that either happened or didn't)
+- "The election was rigged" = verifiable_fact (can be investigated)
+- "Vaccines cause autism" = verifiable_fact (can be tested scientifically)
+- "The moon landing was faked" = verifiable_fact (can be verified)
+- These are NOT opinions - they are factual claims that happen to be false
+- Do NOT confuse "controversial" or "false" with "opinion" - false claims are still verifiable facts
+- The fact that someone believes something doesn't make it an opinion - it's still a factual claim
+
 EXAMPLE 3 (separating observation from intent):
 Input: "The Harry Potter goblins are antisemitic caricatures"
 Output: {
@@ -88,6 +99,15 @@ Output: {
     {"id": "c2", "text": "This was intentional antisemitic representation", "type": "value_judgment", "verifiabilityScore": 0.0, "explanation": "Intent cannot be verified without explicit statement from the author"}
   ]
 }
+
+EXAMPLE 4 (controversial factual claim - NOT an opinion):
+Input: "The 2020 election was stolen from Donald Trump"
+Output: {
+  "components": [
+    {"id": "c1", "text": "The 2020 election was stolen from Donald Trump", "type": "verifiable_fact", "verifiabilityScore": 1.0, "explanation": "Claim about election fraud can be investigated and verified as true or false"}
+  ]
+}
+Note: This is a single verifiable claim. Do NOT split into "the election happened" + "it was stolen" - the core claim IS that it was stolen, which is verifiable (and has been debunked).
 
 OUTPUT FORMAT:
 Return a JSON object with:
