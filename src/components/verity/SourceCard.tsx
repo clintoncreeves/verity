@@ -82,56 +82,56 @@ export function SourceCard({ source, className }: SourceCardProps) {
   const TypeIcon = getTypeIcon()
 
   return (
-    <TooltipProvider delayDuration={200}>
-      <Card className={cn("hover:shadow-md transition-shadow", className)}>
-        <CardContent className="p-4">
-          <div className="flex items-start gap-4">
-            <div className="shrink-0">
-              <div className={cn(
-                "w-10 h-10 rounded-lg flex items-center justify-center",
-                getReliabilityBg(source.reliability)
-              )}>
-                <TypeIcon className={cn("w-5 h-5", getReliabilityColor(source.reliability))} />
+    <Card className={cn("hover:shadow-md transition-shadow", className)}>
+      <CardContent className="p-4">
+        <div className="flex items-start gap-4">
+          <div className="shrink-0">
+            <div className={cn(
+              "w-10 h-10 rounded-lg flex items-center justify-center",
+              getReliabilityBg(source.reliability)
+            )}>
+              <TypeIcon className={cn("w-5 h-5", getReliabilityColor(source.reliability))} />
+            </div>
+          </div>
+
+          <div className="flex-1 min-w-0 space-y-2">
+            <div className="flex items-start justify-between gap-2">
+              <div className="flex-1 min-w-0">
+                {/* Show title as headline if available, otherwise domain name */}
+                <h4 className="font-medium text-sm leading-tight line-clamp-2">
+                  {source.title || source.name}
+                </h4>
+                {/* Show domain underneath the title */}
+                <p className="text-xs text-muted-foreground mt-1 font-mono">
+                  {source.name}
+                </p>
               </div>
+              {source.url && (
+                <a
+                  href={source.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-primary hover:text-primary/80 transition-colors shrink-0"
+                  aria-label="Open source"
+                >
+                  <ExternalLink className="w-4 h-4" />
+                </a>
+              )}
             </div>
 
-            <div className="flex-1 min-w-0 space-y-2">
-              <div className="flex items-start justify-between gap-2">
-                <div className="flex-1 min-w-0">
-                  {/* Show title as headline if available, otherwise domain name */}
-                  <h4 className="font-medium text-sm leading-tight line-clamp-2">
-                    {source.title || source.name}
-                  </h4>
-                  {/* Show domain underneath the title */}
-                  <p className="text-xs text-muted-foreground mt-1 font-mono">
-                    {source.name}
-                  </p>
-                </div>
-                {source.url && (
-                  <a
-                    href={source.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-primary hover:text-primary/80 transition-colors shrink-0"
-                    aria-label="Open source"
-                  >
-                    <ExternalLink className="w-4 h-4" />
-                  </a>
-                )}
-              </div>
+            {/* Show snippet if available */}
+            {source.snippet && (
+              <p className="text-xs text-muted-foreground line-clamp-2">
+                {source.snippet}
+              </p>
+            )}
 
-              {/* Show snippet if available */}
-              {source.snippet && (
-                <p className="text-xs text-muted-foreground line-clamp-2">
-                  {source.snippet}
-                </p>
-              )}
+            <div className="flex items-center gap-2 flex-wrap">
+              <Badge variant="secondary" className="text-xs">
+                {getTypeLabel()}
+              </Badge>
 
-              <div className="flex items-center gap-2 flex-wrap">
-                <Badge variant="secondary" className="text-xs">
-                  {getTypeLabel()}
-                </Badge>
-
+              <TooltipProvider delayDuration={200}>
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Badge
@@ -149,17 +149,17 @@ export function SourceCard({ source, className }: SourceCardProps) {
                     <p className="text-xs">{RELIABILITY_EXPLANATION}</p>
                   </TooltipContent>
                 </Tooltip>
+              </TooltipProvider>
 
-                {source.publishDate && (
-                  <span className="text-xs text-muted-foreground font-mono ml-auto">
-                    {source.publishDate}
-                  </span>
-                )}
-              </div>
+              {source.publishDate && (
+                <span className="text-xs text-muted-foreground font-mono ml-auto">
+                  {source.publishDate}
+                </span>
+              )}
             </div>
           </div>
-        </CardContent>
-      </Card>
-    </TooltipProvider>
+        </div>
+      </CardContent>
+    </Card>
   )
 }
