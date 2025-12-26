@@ -63,10 +63,10 @@ export default function Home() {
           reliability: s.reliability,
           domain: new URL(s.url).hostname,
         })) || [],
-        evidence: apiResult.evidence?.map((e: { text: string; type: string }, i: number) => ({
+        evidence: apiResult.evidence?.map((e: string, i: number) => ({
           id: String(i + 1),
-          text: e.text,
-          type: e.type,
+          text: e,
+          type: "contextual" as const,
         })) || [],
         factChecks: apiResult.existingFactChecks?.map((fc: { org: string; verdict: string; date: string; url: string }, i: number) => ({
           id: String(i + 1),
