@@ -107,3 +107,35 @@ export function isValueJudgmentQuestion(text: string): boolean {
   // Check for value judgment keywords in question context
   return containsValueJudgmentKeywords(text);
 }
+
+/**
+ * Check if a claim is about someone's intent, motivation, or creative inspiration
+ * These claims cannot be definitively verified unless the person has explicitly stated their intent
+ */
+export function containsIntentClaim(claim: string): boolean {
+  const patterns = [
+    /\bbased (?:on|upon)\b/i,
+    /\binspired by\b/i,
+    /\bintended to\b/i,
+    /\bdesigned to\b/i,
+    /\bin order to\b/i,
+    /\bmeant to\b/i,
+    /\bpurposely\b/i,
+    /\bdeliberately\b/i,
+    /\bto achieve\b/i,
+    /\bmotivated by\b/i,
+    /\bwith the intent\b/i,
+    /\bfor the purpose of\b/i,
+    /\bto represent\b/i,
+    /\bsymbolize[sd]?\b/i,
+    /\brepresent(?:s|ed|ing)?\b.*\b(?:stereotype|people|group|race|religion)\b/i,
+  ];
+  return patterns.some(p => p.test(claim));
+}
+
+/**
+ * Check if a claim is unverifiable (combines intent check with value judgment check)
+ */
+export function isUnverifiableClaim(claim: string): boolean {
+  return containsValueJudgmentKeywords(claim) || containsIntentClaim(claim);
+}

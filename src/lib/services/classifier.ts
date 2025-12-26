@@ -5,7 +5,7 @@
 
 import { anthropicClient } from './anthropic-client';
 import type { VerificationCategory, Source, ExistingFactCheck } from '@/types/verity';
-import { containsValueJudgmentKeywords, isFalseVerdict } from '@/lib/utils/verdict-utils';
+import { containsValueJudgmentKeywords, containsIntentClaim, isFalseVerdict } from '@/lib/utils/verdict-utils';
 import { CLAUDE_CONFIG } from '@/lib/config/constants';
 
 export interface ClassificationResult {
@@ -90,6 +90,17 @@ CRITICAL - QUESTIONS ASKING FOR VALUE JUDGMENTS:
 - Example: "The US did an air strike. Was that necessary?" - The air strike may be factual, but whether it was NECESSARY is an opinion
 - When a question asks for a judgment, evaluation, or assessment of rightness/necessity, classify as "opinion"
 
+CRITICAL - CLAIMS ABOUT INTENT, MOTIVATION, OR INSPIRATION:
+- Claims about WHY someone did something, what INSPIRED them, or what they INTENDED are NOT verifiable
+- Unless the person has explicitly and publicly stated their intent, we cannot know their motivation
+- Patterns like "X was based on Y", "X was inspired by Y", "X was designed to Y", "X was meant to Y" are intent claims
+- The existence of similarities, parallels, or interpretations does NOT prove intent
+- These MUST be classified as "opinion" or "disputed" - NEVER as "verified_fact" or "expert_consensus"
+- Example: "JK Rowling based the goblins on Jewish stereotypes" - this is an INTENT claim that cannot be verified
+- Example: "The goblin design shares characteristics with antisemitic caricatures" - this IS verifiable (observable similarities)
+- When the claim is about someone's creative intent, motivation, or inspiration, classify as "opinion"
+- Confidence for intent claims should NEVER exceed 50% unless the person explicitly stated their intent
+
 EXPLAINING VERIFIABLE VS OPINION:
 - When a claim mixes facts with opinions, your reasoning MUST clearly separate them
 - Example reasoning: "The air strike on [date] is a verifiable event. However, whether it was 'necessary' is a value judgment that cannot be objectively verified - different people with different values would reach different conclusions."
@@ -168,6 +179,29 @@ export async function classifyClaim(
 
     // Clamp confidence
     result.confidence = Math.max(0, Math.min(1, result.confidence || 0.5));
+
+    // GUARD: Intent claims should never be verified_fact or expert_consensus
+    // Intent/motivation cannot be definitively proven without explicit statement from the subject
+    if (containsIntentClaim(claim)) {
+      if (result.category === 'verified_fact' || result.category === 'expert_consensus') {
+        console.warn(`[Verity] Intent claim incorrectly classified as ${result.category}, correcting to opinion`);
+        result.category = 'opinion';
+        result.reasoning = `This claim involves someone's intent or motivation, which cannot be definitively verified without their explicit statement. ${result.reasoning}`;
+      }
+      // Cap confidence for intent claims - we can never be highly confident about intent
+      if (result.confidence > 0.6) {
+        result.confidence = 0.5;
+      }
+    }
+
+    // GUARD: Value judgment claims should be opinion, not verified categories
+    if (containsValueJudgmentKeywords(claim)) {
+      if (result.category === 'verified_fact' || result.category === 'expert_consensus') {
+        console.warn(`[Verity] Value judgment claim incorrectly classified as ${result.category}, correcting to opinion`);
+        result.category = 'opinion';
+        result.reasoning = `This claim contains subjective value judgments that cannot be objectively verified. ${result.reasoning}`;
+      }
+    }
 
     return result;
 

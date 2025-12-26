@@ -147,7 +147,7 @@ export function DecomposedClaimDisplay({
                       componentTypeConfig.verifiable_fact.borderColor
                     )}
                   >
-                    {summary.verifiableFacts} Fact{summary.verifiableFacts > 1 ? "s" : ""}
+                    {summary.verifiableFacts} Claim{summary.verifiableFacts > 1 ? "s" : ""}
                   </Badge>
                 )}
                 {summary.presuppositions > 0 && (

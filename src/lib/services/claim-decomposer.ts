@@ -63,11 +63,29 @@ Output: {
   ]
 }
 
-EXAMPLE 2 (pure question containing implicit claim):
+EXAMPLE 2 (question about intent/motivation - NOT verifiable):
 Input: "did JK Rowling base the goblins in harry potter on jewish people?"
 Output: {
   "components": [
-    {"id": "c1", "text": "JK Rowling based the goblins in Harry Potter on Jewish people", "type": "verifiable_fact", "verifiabilityScore": 0.7, "explanation": "Claim about author's intent - can be researched but hard to prove definitively"}
+    {"id": "c1", "text": "JK Rowling based the goblins in Harry Potter on Jewish people", "type": "value_judgment", "verifiabilityScore": 0.0, "explanation": "Claim about author's creative intent cannot be verified unless she explicitly stated it"}
+  ]
+}
+
+CRITICAL - INTENT AND MOTIVATION CLAIMS:
+- Claims about WHY someone did something, what they INTENDED, or what INSPIRED them are NOT verifiable facts
+- Unless the person has explicitly stated their intent, we cannot know their motivation
+- "X was based on Y", "X was inspired by Y", "X was designed to Y" are intent claims
+- These should be classified as value_judgment with verifiabilityScore 0.0
+- The existence of similarities or interpretations does NOT prove intent
+- Example: "The goblins share visual characteristics with antisemitic caricatures" = verifiable_fact (observable)
+- Example: "JK Rowling based the goblins on Jewish stereotypes" = value_judgment (claims intent)
+
+EXAMPLE 3 (separating observation from intent):
+Input: "The Harry Potter goblins are antisemitic caricatures"
+Output: {
+  "components": [
+    {"id": "c1", "text": "The Harry Potter goblins share characteristics with historical antisemitic caricatures", "type": "verifiable_fact", "verifiabilityScore": 0.9, "explanation": "Visual/narrative similarities can be observed and documented"},
+    {"id": "c2", "text": "This was intentional antisemitic representation", "type": "value_judgment", "verifiabilityScore": 0.0, "explanation": "Intent cannot be verified without explicit statement from the author"}
   ]
 }
 

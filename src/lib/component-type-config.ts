@@ -24,8 +24,8 @@ export interface ComponentTypeConfig {
 
 export const componentTypeConfig: Record<ClaimComponentType, ComponentTypeConfig> = {
   verifiable_fact: {
-    label: 'Verifiable Fact',
-    shortLabel: 'Fact',
+    label: 'Checkable Claim',
+    shortLabel: 'Claim',
     color: 'text-teal-700 dark:text-teal-400',
     bgColor: 'bg-teal-100/60 dark:bg-teal-900/40',
     borderColor: 'border-teal-300 dark:border-teal-700',
@@ -74,13 +74,13 @@ export function getComponentTypeConfig(type: ClaimComponentType): ComponentTypeC
 export function getComponentTypeLetter(type: ClaimComponentType): string {
   switch (type) {
     case 'verifiable_fact':
-      return 'F';
+      return 'C'; // Claim (checkable)
     case 'value_judgment':
-      return 'O';
+      return 'O'; // Opinion
     case 'prediction':
-      return 'P';
+      return 'P'; // Prediction
     case 'presupposition':
-      return 'A';
+      return 'A'; // Assumed
     default:
       return '?';
   }
