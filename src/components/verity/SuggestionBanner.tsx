@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef, useCallback } from "react"
 import { TrendingUp, CheckCircle2, XCircle, AlertCircle } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
@@ -41,6 +41,8 @@ export function SuggestionBanner({ onTryClaim, className }: SuggestionBannerProp
   const [headlines, setHeadlines] = useState<TrendingHeadline[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isPaused, setIsPaused] = useState(false)
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const pauseTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   useEffect(() => {
     async function fetchTrending() {
@@ -59,6 +61,66 @@ export function SuggestionBanner({ onTryClaim, className }: SuggestionBannerProp
     }
 
     fetchTrending()
+  }, [])
+
+  // Smooth auto-scroll using requestAnimationFrame
+  useEffect(() => {
+    if (isPaused || headlines.length === 0 || !scrollRef.current) return
+
+    const scrollContainer = scrollRef.current
+    let animationFrameId: number
+    const scrollSpeed = 0.5 // pixels per frame (~30px/sec at 60fps)
+
+    const scroll = () => {
+      if (scrollContainer && !isPaused) {
+        scrollContainer.scrollLeft += scrollSpeed
+
+        // Reset to beginning when we've scrolled through half (the duplicated content)
+        const halfWidth = scrollContainer.scrollWidth / 2
+        if (scrollContainer.scrollLeft >= halfWidth) {
+          scrollContainer.scrollLeft = 0
+        }
+      }
+      animationFrameId = requestAnimationFrame(scroll)
+    }
+
+    animationFrameId = requestAnimationFrame(scroll)
+
+    return () => {
+      cancelAnimationFrame(animationFrameId)
+    }
+  }, [isPaused, headlines])
+
+  // Handle pause with auto-resume after inactivity
+  const handlePause = useCallback(() => {
+    setIsPaused(true)
+
+    // Clear any existing timeout
+    if (pauseTimeoutRef.current) {
+      clearTimeout(pauseTimeoutRef.current)
+    }
+
+    // Auto-resume after 3 seconds of inactivity
+    pauseTimeoutRef.current = setTimeout(() => {
+      setIsPaused(false)
+    }, 3000)
+  }, [])
+
+  const handleResume = useCallback(() => {
+    // Clear the auto-resume timeout when user explicitly leaves
+    if (pauseTimeoutRef.current) {
+      clearTimeout(pauseTimeoutRef.current)
+    }
+    setIsPaused(false)
+  }, [])
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (pauseTimeoutRef.current) {
+        clearTimeout(pauseTimeoutRef.current)
+      }
+    }
   }, [])
 
   if (isLoading) {
@@ -81,13 +143,14 @@ export function SuggestionBanner({ onTryClaim, className }: SuggestionBannerProp
     return null
   }
 
+  // Duplicate headlines for seamless infinite scroll
+  const duplicatedHeadlines = [...headlines, ...headlines]
+
   return (
     <div
       className={cn("w-full overflow-hidden", className)}
-      onMouseEnter={() => setIsPaused(true)}
-      onMouseLeave={() => setIsPaused(false)}
-      onTouchStart={() => setIsPaused(true)}
-      onTouchEnd={() => setIsPaused(false)}
+      onMouseEnter={handlePause}
+      onMouseLeave={handleResume}
     >
       <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2">
         <TrendingUp className="w-3 h-3" />
@@ -95,63 +158,32 @@ export function SuggestionBanner({ onTryClaim, className }: SuggestionBannerProp
       </div>
 
       <div
+        ref={scrollRef}
         className={cn(
-          "flex gap-3",
-          isPaused ? "overflow-x-auto scrollbar-hide" : "animate-scroll"
+          "flex gap-3 overflow-x-auto scrollbar-hide",
+          // Smooth scrolling for touch devices
+          "scroll-smooth touch-pan-x"
         )}
-        style={{
-          animationDuration: `${headlines.length * 8}s`,
-          // Width is calculated: (card width + gap) * number of headlines
-          // This ensures the animation loops perfectly
-          width: isPaused ? "auto" : `calc((300px + 12px) * ${headlines.length * 2})`,
+        onTouchStart={handlePause}
+        onTouchEnd={() => {
+          // Keep paused briefly after touch to allow manual scrolling
+          if (pauseTimeoutRef.current) {
+            clearTimeout(pauseTimeoutRef.current)
+          }
+          pauseTimeoutRef.current = setTimeout(() => {
+            setIsPaused(false)
+          }, 3000)
         }}
+        onScroll={handlePause}
       >
-        {/* First set of headlines */}
-        {headlines.map((headline, index) => {
+        {duplicatedHeadlines.map((headline, index) => {
           const categoryInfo = headline.cached
             ? categoryDisplay[headline.cached.category] || categoryDisplay.opinion
             : null
 
           return (
             <button
-              key={`first-${headline.title}-${index}`}
-              onClick={() => onTryClaim(headline.title, headline.cached)}
-              className={cn(
-                "shrink-0 text-left px-5 py-4 rounded-lg border transition-all",
-                "hover:scale-[1.02] hover:shadow-md",
-                "bg-background/80 backdrop-blur-sm",
-                "w-[300px] min-h-[140px] flex flex-col"
-              )}
-            >
-              <div className="flex items-center gap-2 mb-2">
-                <span className="text-[11px] text-muted-foreground truncate">
-                  {headline.source}
-                </span>
-                {categoryInfo && (
-                  <Badge
-                    variant="outline"
-                    className={cn("text-[10px] px-2 py-0.5 h-5 gap-1", categoryInfo.color, categoryInfo.borderColor)}
-                  >
-                    <categoryInfo.icon className="w-3 h-3" />
-                    {categoryInfo.label}
-                  </Badge>
-                )}
-              </div>
-              <p className="text-sm lg:text-base font-medium leading-relaxed line-clamp-3 flex-1">
-                {headline.title}
-              </p>
-            </button>
-          )
-        })}
-        {/* Duplicate set for seamless loop */}
-        {headlines.map((headline, index) => {
-          const categoryInfo = headline.cached
-            ? categoryDisplay[headline.cached.category] || categoryDisplay.opinion
-            : null
-
-          return (
-            <button
-              key={`second-${headline.title}-${index}`}
+              key={`${headline.title}-${index}`}
               onClick={() => onTryClaim(headline.title, headline.cached)}
               className={cn(
                 "shrink-0 text-left px-5 py-4 rounded-lg border transition-all",
