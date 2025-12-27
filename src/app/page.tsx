@@ -29,8 +29,25 @@ export default function Home() {
   const [quotaExceeded, setQuotaExceeded] = useState(false)
   const [inputValue, setInputValue] = useState("")
 
-  const handleTryClaim = (claim: string) => {
+  // Handle clicking a trending headline
+  const handleTryClaim = (claim: string, cached?: { id: string; category: string; confidence: number; summary: string }) => {
     setInputValue(claim)
+
+    // If we have a cached result, show it immediately without API call
+    if (cached) {
+      const cachedResult: VerificationResult = {
+        category: mapCategory(cached.category),
+        confidence: cached.confidence,
+        summary: cached.summary,
+        reasoning: "",
+        sources: [],
+        evidence: [],
+        factChecks: [],
+        verificationId: cached.id,
+        verifiedAt: new Date().toISOString(),
+      }
+      setResult(cachedResult)
+    }
   }
 
   const handleVerify = async (input: { type: "text" | "image" | "url"; content: string }) => {

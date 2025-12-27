@@ -1,19 +1,40 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { TrendingUp, ChevronLeft, ChevronRight } from "lucide-react"
+import { TrendingUp, ChevronLeft, ChevronRight, CheckCircle2, XCircle, AlertCircle } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { Badge } from "@/components/ui/badge"
+
+interface CachedResult {
+  id: string
+  category: string
+  confidence: number
+  summary: string
+}
 
 interface TrendingHeadline {
   title: string
   source: string
   url: string
   publishedAt: string
+  cached?: CachedResult
 }
 
 interface SuggestionBannerProps {
-  onTryClaim: (claim: string) => void
+  onTryClaim: (claim: string, cached?: CachedResult) => void
   className?: string
+}
+
+// Map backend categories to display info
+const categoryDisplay: Record<string, { label: string; color: string; icon: typeof CheckCircle2 }> = {
+  verified_fact: { label: "Verified", color: "text-teal-600 dark:text-teal-400", icon: CheckCircle2 },
+  expert_consensus: { label: "Likely True", color: "text-teal-600 dark:text-teal-400", icon: CheckCircle2 },
+  partially_verified: { label: "Partially Verified", color: "text-amber-600 dark:text-amber-400", icon: AlertCircle },
+  disputed: { label: "Mixed", color: "text-amber-600 dark:text-amber-400", icon: AlertCircle },
+  likely_false: { label: "Likely False", color: "text-rose-600 dark:text-rose-400", icon: XCircle },
+  confirmed_false: { label: "False", color: "text-rose-600 dark:text-rose-400", icon: XCircle },
+  opinion: { label: "Opinion", color: "text-slate-500", icon: AlertCircle },
+  speculation: { label: "Speculation", color: "text-slate-500", icon: AlertCircle },
 }
 
 export function SuggestionBanner({ onTryClaim, className }: SuggestionBannerProps) {
@@ -72,6 +93,9 @@ export function SuggestionBanner({ onTryClaim, className }: SuggestionBannerProp
   }
 
   const currentHeadline = headlines[currentIndex]
+  const categoryInfo = currentHeadline.cached
+    ? categoryDisplay[currentHeadline.cached.category] || categoryDisplay.opinion
+    : null
 
   return (
     <div className={cn(
@@ -93,7 +117,7 @@ export function SuggestionBanner({ onTryClaim, className }: SuggestionBannerProp
 
         {/* Main content - clickable */}
         <button
-          onClick={() => onTryClaim(currentHeadline.title)}
+          onClick={() => onTryClaim(currentHeadline.title, currentHeadline.cached)}
           className="flex-1 text-left p-3 hover:bg-teal-100/50 dark:hover:bg-teal-900/30 transition-colors"
         >
           <div className="flex items-start gap-3">
@@ -101,7 +125,7 @@ export function SuggestionBanner({ onTryClaim, className }: SuggestionBannerProp
               <TrendingUp className="w-4 h-4 text-teal-500" />
             </div>
             <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 mb-1">
+              <div className="flex items-center gap-2 mb-1 flex-wrap">
                 <span className="text-xs font-medium text-teal-600 dark:text-teal-400">
                   Trending
                 </span>
@@ -113,12 +137,19 @@ export function SuggestionBanner({ onTryClaim, className }: SuggestionBannerProp
                     {currentIndex + 1}/{headlines.length}
                   </span>
                 )}
+                {/* Show pre-verified badge if cached */}
+                {categoryInfo && (
+                  <Badge variant="outline" className={cn("text-[10px] gap-1", categoryInfo.color)}>
+                    <categoryInfo.icon className="w-3 h-3" />
+                    {categoryInfo.label}
+                  </Badge>
+                )}
               </div>
               <p className="text-sm text-foreground/90 line-clamp-2">
                 &ldquo;{currentHeadline.title}&rdquo;
               </p>
               <p className="text-xs text-teal-500 mt-1">
-                Click to verify →
+                {currentHeadline.cached ? "Click to see full analysis →" : "Click to verify →"}
               </p>
             </div>
           </div>

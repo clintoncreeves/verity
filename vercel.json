@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/preverify",
+      "schedule": "0 0 * * *"
+    }
+  ]
+}
