@@ -69,7 +69,7 @@ export function SuggestionBanner({ onTryClaim, className }: SuggestionBannerProp
 
     const scrollContainer = scrollRef.current
     let animationFrameId: number
-    const scrollSpeed = 0.5 // pixels per frame (~30px/sec at 60fps)
+    const scrollSpeed = 1.5 // pixels per frame (~90px/sec at 60fps)
 
     const scroll = () => {
       if (scrollContainer && !isPaused) {
