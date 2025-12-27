@@ -118,9 +118,21 @@ export async function verify(request: VerificationRequest): Promise<FullVerifica
   }
 
   // Step 2: Extract verifiable claims from the input
-  console.log('[Verity] Step 2: Extracting claims...');
-  const extractedClaims = await extractClaims(content);
-  console.log(`[Verity] Extracted ${extractedClaims.length} claims`);
+  // In fast mode, skip extraction and use the content directly as a single claim
+  let extractedClaims: ExtractedClaim[];
+  if (fastMode) {
+    console.log('[Verity] Step 2: Skipping claim extraction (fast mode)');
+    extractedClaims = [{
+      id: generateId(),
+      text: content.slice(0, 500), // Use first 500 chars as the claim
+      type: 'factual',
+      confidence: 0.8,
+    }];
+  } else {
+    console.log('[Verity] Step 2: Extracting claims...');
+    extractedClaims = await extractClaims(content);
+    console.log(`[Verity] Extracted ${extractedClaims.length} claims`);
+  }
 
   // Step 3: Search for existing fact-checks (per-claim for better accuracy)
   let existingFactChecks: ExistingFactCheck[] = [];

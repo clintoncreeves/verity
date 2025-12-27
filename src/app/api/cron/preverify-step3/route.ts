@@ -13,6 +13,8 @@ import {
 } from '@/lib/services/trending-cache';
 import { verify } from '@/lib/services/verification-orchestrator';
 
+export const maxDuration = 60; // 60s timeout for Pro plan
+
 export async function POST(request: NextRequest) {
   const startTime = Date.now();
 
@@ -64,14 +66,13 @@ export async function POST(request: NextRequest) {
       verificationContent = `Headline: ${pending.title}\n\nArticle excerpt:\n${pending.articleExcerpt}`;
     }
 
-    // Run verification in fast mode (skip decomposition and component classification)
+    // Run full verification with 60s timeout
     const result = await verify({
       type: 'text',
       content: verificationContent,
       options: {
-        includeFactChecks: false, // Skip fact-check API to save time
-        includeWebSearch: false, // Disable web search for speed
-        fastMode: true, // Skip decomposition and component classification
+        includeFactChecks: true,
+        includeWebSearch: true,
       },
     });
 
