@@ -134,12 +134,11 @@ export async function getTrendingHeadline(): Promise<TrendingHeadline | null> {
  *
  * GOAL: Find headlines with concrete, verifiable facts - not meta-commentary
  */
-function scoreHeadline(headline: TrendingHeadline): number {
+function scoreHeadlineForVerifiable(headline: TrendingHeadline): number {
   const title = headline.title.toLowerCase();
   let score = 0;
 
   // STRONGLY PENALIZE meta-commentary and analysis headlines (these verify poorly)
-  // These are headlines ABOUT claims/situations, not actual claims
   if (/belie|analysis|opinion|editorial|commentary|what (it|this|we) (means|know)|explained/i.test(title)) {
     score -= 10;
   }
@@ -153,7 +152,6 @@ function scoreHeadline(headline: TrendingHeadline): number {
   }
 
   // STRONGLY PREFER concrete event headlines with clear facts
-  // Direct statements about what happened
   if (/killed|died|arrested|charged|convicted|sentenced|signed|passed|approved|rejected/i.test(title)) {
     score += 5;
   }
@@ -203,8 +201,76 @@ function scoreHeadline(headline: TrendingHeadline): number {
 }
 
 /**
+ * Score a headline for likelihood of producing mixed/nuanced verdicts
+ * These are MORE interesting for showcasing Verity's analytical depth
+ *
+ * GOAL: Find headlines about predictions, opinions, disputed topics, or nuanced claims
+ */
+function scoreHeadlineForNuanced(headline: TrendingHeadline): number {
+  const title = headline.title.toLowerCase();
+  let score = 0;
+
+  // PREFER future-oriented headlines (can't be fully verified)
+  if (/plans to|expected to|will|set to|aims to|prepares|preparing/i.test(title)) {
+    score += 5;
+  }
+
+  // PREFER hedged/qualified statements (often partially verified)
+  if (/could|may|might|likely|possibly|appears to|seems to/i.test(title)) {
+    score += 4;
+  }
+
+  // PREFER analysis and opinion (interesting to verify the underlying facts)
+  if (/analysis|experts say|according to|study (finds|shows|suggests)/i.test(title)) {
+    score += 3;
+  }
+
+  // PREFER policy/impact claims (often nuanced)
+  if (/would bring|impact|effect|changes|implications|consequences/i.test(title)) {
+    score += 4;
+  }
+
+  // PREFER comparative or superlative claims (often disputed)
+  if (/best|worst|most|least|first|record|all-time|unprecedented/i.test(title)) {
+    score += 3;
+  }
+
+  // PREFER controversial or disputed topics
+  if (/debate|disputed|controversial|critics|supporters|opponents/i.test(title)) {
+    score += 4;
+  }
+
+  // PREFER predictions and forecasts
+  if (/predict|forecast|expect|anticipate|outlook/i.test(title)) {
+    score += 4;
+  }
+
+  // Penalize simple factual reports (too easy to verify)
+  if (/killed|died|arrested|charged|convicted|sentenced/i.test(title)) {
+    score -= 3;
+  }
+
+  // Penalize pure entertainment (not interesting for fact-checking)
+  if (/movie|film|album|concert|celebrity|star|trailer|release date/i.test(title)) {
+    score -= 5;
+  }
+
+  // Penalize clickbait
+  if (/exclusive:|video:|watch:|photos:|you won't believe/i.test(title)) {
+    score -= 5;
+  }
+
+  // Prefer medium-length headlines
+  if (title.length >= 40 && title.length <= 120) {
+    score += 1;
+  }
+
+  return score;
+}
+
+/**
  * Get the best headlines for showcasing Verity
- * Returns 5-8 headlines sorted by how well they demonstrate fact-checking
+ * Returns a mix of verifiable facts AND nuanced/mixed claims to show platform range
  */
 export async function getBestHeadlines(count: number = 6): Promise<TrendingHeadline[]> {
   const headlines = await fetchTrendingHeadlines();
@@ -213,35 +279,50 @@ export async function getBestHeadlines(count: number = 6): Promise<TrendingHeadl
     return [];
   }
 
-  // Score and sort headlines
-  const scoredHeadlines = headlines
-    .map(h => ({ headline: h, score: scoreHeadline(h) }))
+  // Score headlines by both criteria
+  const scoredVerifiable = headlines
+    .map(h => ({ headline: h, score: scoreHeadlineForVerifiable(h) }))
     .sort((a, b) => b.score - a.score);
 
-  // Take top headlines, but ensure variety by source
+  const scoredNuanced = headlines
+    .map(h => ({ headline: h, score: scoreHeadlineForNuanced(h) }))
+    .sort((a, b) => b.score - a.score);
+
+  // Select a MIX: ~60% nuanced (more likely mixed verdict), ~40% verifiable
+  const nuancedCount = Math.ceil(count * 0.6);
+  const verifiableCount = count - nuancedCount;
+
   const selected: TrendingHeadline[] = [];
   const usedSources = new Set<string>();
+  const usedTitles = new Set<string>();
 
-  for (const { headline } of scoredHeadlines) {
-    // Skip if we already have a headline from this source
-    if (usedSources.has(headline.source)) {
-      continue;
-    }
+  // First, take top nuanced headlines (likely to produce mixed/partially verified)
+  for (const { headline } of scoredNuanced) {
+    if (selected.length >= nuancedCount) break;
+    if (usedSources.has(headline.source) || usedTitles.has(headline.title)) continue;
 
     selected.push(headline);
     usedSources.add(headline.source);
-
-    if (selected.length >= count) {
-      break;
-    }
+    usedTitles.add(headline.title);
   }
 
-  // If we don't have enough, add more regardless of source
+  // Then, fill with top verifiable headlines (likely to produce verified)
+  for (const { headline } of scoredVerifiable) {
+    if (selected.length >= count) break;
+    if (usedTitles.has(headline.title)) continue; // Skip if already added
+    // Allow same source for verifiable if needed
+
+    selected.push(headline);
+    usedTitles.add(headline.title);
+  }
+
+  // If still not enough, add any remaining
   if (selected.length < count) {
-    for (const { headline } of scoredHeadlines) {
-      if (!selected.includes(headline)) {
+    for (const headline of headlines) {
+      if (selected.length >= count) break;
+      if (!usedTitles.has(headline.title)) {
         selected.push(headline);
-        if (selected.length >= count) break;
+        usedTitles.add(headline.title);
       }
     }
   }
