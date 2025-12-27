@@ -131,38 +131,71 @@ export async function getTrendingHeadline(): Promise<TrendingHeadline | null> {
 /**
  * Score a headline for how well it demonstrates Verity's capabilities
  * Higher scores = better for showcasing the platform
+ *
+ * GOAL: Find headlines with concrete, verifiable facts - not meta-commentary
  */
 function scoreHeadline(headline: TrendingHeadline): number {
   const title = headline.title.toLowerCase();
   let score = 0;
 
-  // Prefer headlines that make factual claims
-  if (/says|claims|reports|announces|confirms|denies|according to/i.test(title)) {
+  // STRONGLY PENALIZE meta-commentary and analysis headlines (these verify poorly)
+  // These are headlines ABOUT claims/situations, not actual claims
+  if (/belie|analysis|opinion|editorial|commentary|what (it|this|we) (means|know)|explained/i.test(title)) {
+    score -= 10;
+  }
+  if (/claims about|questions about|debate over|controversy|complex situation/i.test(title)) {
+    score -= 8;
+  }
+
+  // STRONGLY PENALIZE vague/subjective headlines
+  if (/could|may|might|likely|possibly|appears to|seems to/i.test(title)) {
+    score -= 5;
+  }
+
+  // STRONGLY PREFER concrete event headlines with clear facts
+  // Direct statements about what happened
+  if (/killed|died|arrested|charged|convicted|sentenced|signed|passed|approved|rejected/i.test(title)) {
+    score += 5;
+  }
+  if (/announces|declared|launches|releases|bans|suspends|fires|resigns/i.test(title)) {
+    score += 4;
+  }
+
+  // Prefer headlines with specific numbers/statistics (concrete and verifiable)
+  if (/\d+ (people|dead|killed|injured|arrested|million|billion|percent|%)/i.test(title)) {
+    score += 4;
+  }
+  if (/\$[\d,]+|\d+%/i.test(title)) {
     score += 3;
   }
 
-  // Prefer headlines with numbers/statistics
-  if (/\d+%|\$\d+|\d+ (million|billion|people|deaths|cases)/i.test(title)) {
+  // Prefer headlines about concrete events
+  if (/earthquake|storm|fire|flood|crash|explosion|attack|bombing|strike/i.test(title)) {
+    score += 3;
+  }
+
+  // Government/policy actions (usually verifiable)
+  if (/president|congress|senate|court|judge|ruling|law|bill|executive order/i.test(title)) {
     score += 2;
   }
 
-  // Prefer political/policy/science topics that benefit from fact-checking
-  if (/president|congress|senate|election|vaccine|climate|study|research/i.test(title)) {
-    score += 2;
-  }
-
-  // Slightly penalize breaking/urgent news (may not be fully verifiable yet)
-  if (/breaking|just in|developing/i.test(title)) {
-    score -= 1;
+  // Penalize breaking/developing news (not fully verifiable yet)
+  if (/breaking|just in|developing|live updates/i.test(title)) {
+    score -= 3;
   }
 
   // Penalize entertainment/sports (less need for fact-checking)
-  if (/movie|film|album|concert|game|score|wins|loses|playoffs/i.test(title)) {
-    score -= 2;
+  if (/movie|film|album|concert|game|score|wins|loses|playoffs|celebrity|star/i.test(title)) {
+    score -= 4;
+  }
+
+  // Penalize "exclusive" and "video" headlines (often clickbait)
+  if (/exclusive:|video:|watch:|photos:/i.test(title)) {
+    score -= 3;
   }
 
   // Prefer medium-length headlines (not too short, not too long)
-  if (title.length >= 40 && title.length <= 120) {
+  if (title.length >= 30 && title.length <= 100) {
     score += 1;
   }
 
