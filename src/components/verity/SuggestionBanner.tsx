@@ -99,7 +99,7 @@ export function SuggestionBanner({ onTryClaim, className }: SuggestionBannerProp
         </div>
         <div className="flex gap-3 animate-pulse">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="shrink-0 h-32 w-72 bg-muted rounded-lg" />
+            <div key={i} className="shrink-0 h-[140px] w-[300px] lg:w-[360px] xl:w-[400px] bg-muted rounded-lg" />
           ))}
         </div>
       </div>
@@ -142,7 +142,8 @@ export function SuggestionBanner({ onTryClaim, className }: SuggestionBannerProp
                 "shrink-0 text-left px-5 py-4 rounded-lg border transition-all",
                 "hover:scale-[1.02] hover:shadow-md",
                 "bg-background/80 backdrop-blur-sm",
-                "w-[300px] min-h-[120px] flex flex-col"
+                "w-[300px] min-h-[140px] flex flex-col",
+                "lg:w-[360px] xl:w-[400px]"
               )}
             >
               <div className="flex items-center gap-2 mb-2">
@@ -159,7 +160,7 @@ export function SuggestionBanner({ onTryClaim, className }: SuggestionBannerProp
                   </Badge>
                 )}
               </div>
-              <p className="text-sm font-medium leading-relaxed line-clamp-3 flex-1">
+              <p className="text-sm lg:text-base font-medium leading-relaxed line-clamp-3 flex-1">
                 {headline.title}
               </p>
             </button>
