@@ -41,7 +41,8 @@ export async function POST(request: NextRequest) {
       const articleResult = await fetchArticleContent(
         headline.url,
         headline.title,
-        headline.source
+        headline.source,
+        headline.publishedAt // Pass publication date for better search context
       );
       if (articleResult) {
         articleExcerpt = articleResult.excerpt;

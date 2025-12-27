@@ -16,10 +16,23 @@ const MAX_EXCERPT_LENGTH = 1500;
  */
 async function searchAndSummarizeArticle(
   headline: string,
-  source: string
+  source: string,
+  publishedAt?: string
 ): Promise<string | null> {
   try {
     console.log(`[Verity] Searching for article: "${headline.slice(0, 50)}..." from ${source}`);
+
+    // Build date context for the search
+    let dateContext = '';
+    if (publishedAt) {
+      const pubDate = new Date(publishedAt);
+      const month = pubDate.toLocaleString('en-US', { month: 'long' });
+      const year = pubDate.getFullYear();
+      dateContext = `\nPublished: ${month} ${year}`;
+    } else {
+      // Default to recent news
+      dateContext = '\nThis is recent news (last few days).';
+    }
 
     const response = await anthropic.messages.create({
       model: 'claude-sonnet-4-20250514',
@@ -28,24 +41,30 @@ async function searchAndSummarizeArticle(
         {
           type: 'web_search_20250305',
           name: 'web_search',
-          max_uses: 2,
+          max_uses: 3, // Allow more searches to find the right article
         },
       ],
       messages: [
         {
           role: 'user',
-          content: `Search for this news article and extract the key factual claims:
+          content: `Find this news article and extract the key factual claims:
 
 Headline: "${headline}"
-Source: ${source}
+Source: ${source}${dateContext}
 
-Use web search to find this specific article or closely related coverage. Then provide a concise summary (3-5 sentences) of the main factual claims. Focus on:
+Search strategy:
+1. First search for the exact headline with the source name (e.g., "${headline}" ${source})
+2. If not found, search for key terms from the headline
+3. Also check official government sources (whitehouse.gov, congress.gov) if this involves government policy
+
+Provide a concise summary (3-5 sentences) of the main factual claims. Focus on:
 - Specific events, dates, and locations
+- Official statements, executive orders, or policy announcements
 - Statistics and numbers
 - Direct quotes from named sources
 - Concrete claims that can be fact-checked
 
-If you cannot find the article, say "Article not found" and nothing else.`,
+If you cannot find the article after multiple searches, say "Article not found" and nothing else.`,
         },
       ],
     });
@@ -88,10 +107,11 @@ If you cannot find the article, say "Article not found" and nothing else.`,
 export async function fetchArticleContent(
   url: string,
   headline: string,
-  source?: string
+  source?: string,
+  publishedAt?: string
 ): Promise<{ excerpt: string; resolvedUrl: string } | null> {
   try {
-    const excerpt = await searchAndSummarizeArticle(headline, source || 'unknown');
+    const excerpt = await searchAndSummarizeArticle(headline, source || 'unknown', publishedAt);
 
     if (!excerpt) {
       return null;

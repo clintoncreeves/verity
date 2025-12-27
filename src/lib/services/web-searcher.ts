@@ -94,8 +94,8 @@ export async function searchNews(
   query: string,
   count: number = 5
 ): Promise<WebSearchResponse> {
-  // Add news-specific terms to query
-  const newsQuery = `${query} site:reuters.com OR site:apnews.com OR site:bbc.com OR site:nytimes.com`;
+  // Add news-specific terms to query - include major news sources and official government sites
+  const newsQuery = `${query} site:reuters.com OR site:apnews.com OR site:bbc.com OR site:nytimes.com OR site:npr.org OR site:whitehouse.gov OR site:cnn.com OR site:washingtonpost.com`;
   return searchWeb(newsQuery, count);
 }
 

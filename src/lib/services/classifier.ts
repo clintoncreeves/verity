@@ -1,12 +1,17 @@
 /**
  * Claim Classifier for Verity
- * Uses Claude Haiku 4.5 to classify claims into 8 verification categories
+ * Uses Claude to classify claims into 8 verification categories
+ * Can perform web search when sources are insufficient
  */
 
 import { anthropicClient } from './anthropic-client';
+import Anthropic from '@anthropic-ai/sdk';
 import type { VerificationCategory, Source, ExistingFactCheck } from '@/types/verity';
 import { containsValueJudgmentKeywords, containsIntentClaim, isFalseVerdict, isAncientHistoricalClaim, isDenialOfEstablishedFact } from '@/lib/utils/verdict-utils';
 import { CLAUDE_CONFIG } from '@/lib/config/constants';
+
+// Direct Anthropic client for web search-enabled classification
+const anthropic = new Anthropic();
 
 /**
  * Clean up reasoning text by removing forbidden phrases that expose internal process limitations
@@ -124,6 +129,16 @@ PRINCIPLES:
 - Acknowledge limitations in your reasoning
 - If evidence is insufficient, lean toward "partially_verified" rather than guessing
 
+CRITICAL - ABSENCE OF EVIDENCE IS NOT EVIDENCE OF FALSITY:
+- "likely_false" and "confirmed_false" require CONTRADICTING evidence, not just missing evidence
+- If sources are irrelevant or don't mention the claim, that is INSUFFICIENT EVIDENCE, not contradiction
+- Use "partially_verified" with low confidence when you cannot find relevant sources
+- Only use "likely_false" when sources ACTIVELY CONTRADICT or debunk the claim
+- Recent news events (government announcements, executive orders, breaking news) may not yet appear in search results
+- Do NOT mark recent policy claims or official announcements as "likely_false" just because search results are sparse or irrelevant
+- "The sources don't mention X" → Use "partially_verified" (low confidence)
+- "The sources say X did NOT happen" → Use "likely_false"
+
 CRITICAL - NEGATION CLAIMS (denial claims):
 - When a claim DENIES something that is well-established, classify the CLAIM not the opposite
 - "The Holocaust never happened" → This CLAIM is confirmed_false (Holocaust denial is debunked)
@@ -199,15 +214,126 @@ CLAIM:
 
 Respond with only valid JSON, no explanation outside the JSON.`;
 
+const WEB_SEARCH_CLASSIFICATION_PROMPT = `You are an expert fact-checker. Your task is to verify this claim by searching for evidence and then classifying it.
+
+CLAIM TO VERIFY:
+"{CLAIM}"
+
+SEARCH STRATEGY:
+1. Search for the specific claim, especially if it mentions dates, names, or official actions
+2. For government policy claims, search official sources (whitehouse.gov, congress.gov)
+3. For news events, search major news outlets
+4. Look for both supporting AND contradicting evidence
+
+After searching, classify into one of these categories:
+- verified_fact: Multiple authoritative sources confirm it
+- expert_consensus: Domain experts broadly agree
+- partially_verified: Some elements verified, others not
+- opinion: Subjective value judgment
+- speculation: Future prediction or hypothesis
+- disputed: Credible sources disagree
+- likely_false: Evidence contradicts the claim
+- confirmed_false: Definitively debunked
+
+CRITICAL: Absence of evidence is NOT evidence of falsity. If you can't find sources, use "partially_verified" with low confidence, NOT "likely_false".
+
+Return ONLY valid JSON with:
+- category: one of the 8 categories
+- confidence: 0.0-1.0
+- reasoning: 1-2 sentences explaining your classification based on what you found`;
+
+/**
+ * Classify a claim with web search capability
+ * Used when initial sources are insufficient
+ */
+async function classifyWithWebSearch(claim: string): Promise<ClassificationResult> {
+  console.log('[Verity] Classifying with web search:', claim.slice(0, 50) + '...');
+
+  try {
+    const response = await anthropic.messages.create({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 1024,
+      tools: [
+        {
+          type: 'web_search_20250305',
+          name: 'web_search',
+          max_uses: 3,
+        },
+      ],
+      messages: [
+        {
+          role: 'user',
+          content: WEB_SEARCH_CLASSIFICATION_PROMPT.replace('{CLAIM}', claim),
+        },
+      ],
+    });
+
+    // Extract text content from response
+    let responseText = '';
+    for (const block of response.content) {
+      if (block.type === 'text') {
+        responseText += block.text;
+      }
+    }
+
+    // Parse JSON from response
+    const jsonMatch = responseText.match(/\{[\s\S]*?\}/);
+    if (!jsonMatch) {
+      console.warn('[Verity] No JSON found in web search classification response');
+      return {
+        category: 'partially_verified',
+        confidence: 0.3,
+        reasoning: 'Unable to complete web search classification.',
+      };
+    }
+
+    const result = JSON.parse(jsonMatch[0]) as ClassificationResult;
+
+    // Validate category
+    const validCategories: VerificationCategory[] = [
+      'verified_fact', 'expert_consensus', 'partially_verified', 'opinion',
+      'speculation', 'disputed', 'likely_false', 'confirmed_false'
+    ];
+
+    if (!validCategories.includes(result.category)) {
+      result.category = 'partially_verified';
+    }
+
+    result.confidence = Math.max(0, Math.min(1, result.confidence || 0.5));
+    result.reasoning = cleanReasoningText(result.reasoning || '');
+
+    console.log(`[Verity] Web search classification: ${result.category} (${Math.round(result.confidence * 100)}%)`);
+    return result;
+
+  } catch (error) {
+    console.error('[Verity] Web search classification failed:', error);
+    return {
+      category: 'partially_verified',
+      confidence: 0.3,
+      reasoning: 'Unable to complete web search classification.',
+    };
+  }
+}
+
 /**
  * Classify a claim into one of 8 verification categories
+ * If sources are insufficient, will perform web search for additional evidence
  */
 export async function classifyClaim(
   claim: string,
   sources: Source[] = [],
-  existingFactChecks: ExistingFactCheck[] = []
+  existingFactChecks: ExistingFactCheck[] = [],
+  options: { allowWebSearch?: boolean } = {}
 ): Promise<ClassificationResult> {
+  const { allowWebSearch = true } = options;
+
   try {
+    // If no sources and no fact-checks, use web search directly
+    if (sources.length === 0 && existingFactChecks.length === 0 && allowWebSearch) {
+      console.log('[Verity] No sources available, using web search classification');
+      return classifyWithWebSearch(claim);
+    }
+
     // Build sources section with full context (title, snippet, etc.)
     let sourcesSection = 'SOURCES: None available';
     if (sources.length > 0) {
@@ -240,11 +366,32 @@ export async function classifyClaim(
       ? CLAUDE_CONFIG.CLASSIFICATION_SENSITIVE
       : CLAUDE_CONFIG.CLASSIFICATION;
 
-    const result = await anthropicClient.sendMessageJSON<ClassificationResult>(
+    let result = await anthropicClient.sendMessageJSON<ClassificationResult>(
       CLASSIFICATION_SYSTEM_PROMPT,
       userMessage,
       config
     );
+
+    // If initial classification shows low confidence or likely_false with no contradicting sources,
+    // try web search for better evidence
+    const sourcesLackRelevance = sources.length > 0 &&
+      !sources.some(s => s.snippet?.toLowerCase().includes(claim.toLowerCase().slice(0, 30)));
+    const shouldRetryWithWebSearch = allowWebSearch &&
+      ((result.category === 'likely_false' && result.confidence < 0.7) ||
+       (result.category === 'partially_verified' && result.confidence < 0.4) ||
+       sourcesLackRelevance);
+
+    if (shouldRetryWithWebSearch) {
+      console.log('[Verity] Initial classification uncertain, trying web search for better evidence');
+      const webSearchResult = await classifyWithWebSearch(claim);
+
+      // Use web search result if it has higher confidence or found actual evidence
+      if (webSearchResult.confidence > result.confidence ||
+          (result.category === 'likely_false' && webSearchResult.category !== 'likely_false')) {
+        console.log(`[Verity] Using web search result: ${webSearchResult.category} vs initial ${result.category}`);
+        result = webSearchResult;
+      }
+    }
 
     // Validate the category
     const validCategories: VerificationCategory[] = [
