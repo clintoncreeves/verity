@@ -1,55 +1,125 @@
 #!/bin/bash
-# Run pre-verification for trending headlines
-# This script calls the API endpoints sequentially to work around Vercel's 10s timeout
+# Run pre-verification for trending headlines using 3-step pipeline
+# Each step stays under Vercel's 10s timeout limit
+#
+# Step 1: Fetch headlines from Google News → store in Redis
+# Step 2: Fetch article content (one at a time) → store in Redis
+# Step 3: Run verification (one at a time) → store in Redis
 
 API_BASE="${API_URL:-https://verity-alpha.vercel.app}"
 
-echo "=== Verity Pre-verification Runner ==="
+echo "=== Verity Pre-verification Pipeline ==="
 echo "API: $API_BASE"
 echo ""
 
-# Step 1: Get pending headlines
-echo "Fetching headlines..."
-RESPONSE=$(curl -s "$API_BASE/api/cron/preverify?clear=${CLEAR:-false}")
+# ==============================
+# STEP 1: Fetch Headlines
+# ==============================
+echo "📰 Step 1: Fetching headlines..."
+STEP1_RESPONSE=$(curl -s "$API_BASE/api/cron/preverify-step1?clear=${CLEAR:-false}")
 
-PENDING=$(echo "$RESPONSE" | jq -r '.summary.pending')
-CACHED=$(echo "$RESPONSE" | jq -r '.summary.cached')
-
-echo "Found: $PENDING pending, $CACHED cached"
-echo ""
-
-if [ "$PENDING" = "0" ]; then
-  echo "No pending headlines to process."
-  exit 0
+STEP1_SUCCESS=$(echo "$STEP1_RESPONSE" | jq -r '.success')
+if [ "$STEP1_SUCCESS" != "true" ]; then
+  echo "❌ Step 1 failed: $(echo "$STEP1_RESPONSE" | jq -r '.error')"
+  exit 1
 fi
 
-# Step 2: Process each pending headline
-HEADLINES=$(echo "$RESPONSE" | jq -c '.pendingHeadlines[]')
+HEADLINE_COUNT=$(echo "$STEP1_RESPONSE" | jq -r '.count')
+STEP1_DURATION=$(echo "$STEP1_RESPONSE" | jq -r '.durationMs')
+echo "✓ Found $HEADLINE_COUNT headlines (${STEP1_DURATION}ms)"
+
+# Show headlines
+echo ""
+echo "Headlines to process:"
+echo "$STEP1_RESPONSE" | jq -r '.headlines[] | "  - \(.title | .[0:60])... (\(.source))"'
+echo ""
+
+# ==============================
+# STEP 2: Fetch Article Content
+# ==============================
+echo "📄 Step 2: Fetching article content..."
 
 i=1
-echo "$HEADLINES" | while read -r headline; do
-  TITLE=$(echo "$headline" | jq -r '.title' | cut -c1-60)
-  echo "[$i/$PENDING] Processing: $TITLE..."
+while true; do
+  STEP2_RESPONSE=$(curl -s "$API_BASE/api/cron/preverify-step2" --max-time 120)
 
-  RESULT=$(curl -s -X POST "$API_BASE/api/cron/preverify-one" \
-    -H "Content-Type: application/json" \
-    -d "{\"headline\": $headline}" \
-    --max-time 120)
+  STEP2_SUCCESS=$(echo "$STEP2_RESPONSE" | jq -r '.success')
+  STEP2_STATUS=$(echo "$STEP2_RESPONSE" | jq -r '.status // empty')
 
-  SUCCESS=$(echo "$RESULT" | jq -r '.success')
-  CATEGORY=$(echo "$RESULT" | jq -r '.category')
-  HAS_ARTICLE=$(echo "$RESULT" | jq -r '.hasArticleContent')
-  DURATION=$(echo "$RESULT" | jq -r '.durationMs')
+  if [ "$STEP2_SUCCESS" != "true" ]; then
+    echo "❌ Step 2 failed: $(echo "$STEP2_RESPONSE" | jq -r '.error')"
+    break
+  fi
 
-  if [ "$SUCCESS" = "true" ]; then
-    echo "    -> $CATEGORY (article: $HAS_ARTICLE) in ${DURATION}ms"
+  if [ "$STEP2_STATUS" = "complete" ]; then
+    echo "✓ All articles fetched"
+    break
+  fi
+
+  HEADLINE=$(echo "$STEP2_RESPONSE" | jq -r '.headline | .[0:50]')
+  HAS_ARTICLE=$(echo "$STEP2_RESPONSE" | jq -r '.hasArticle')
+  ARTICLE_LEN=$(echo "$STEP2_RESPONSE" | jq -r '.articleLength')
+  REMAINING=$(echo "$STEP2_RESPONSE" | jq -r '.remaining')
+  DURATION=$(echo "$STEP2_RESPONSE" | jq -r '.durationMs')
+
+  if [ "$HAS_ARTICLE" = "true" ]; then
+    echo "  [$i] $HEADLINE... (${ARTICLE_LEN} chars, ${DURATION}ms)"
   else
-    ERROR=$(echo "$RESULT" | jq -r '.error')
-    echo "    -> FAILED: $ERROR"
+    echo "  [$i] $HEADLINE... (no article, ${DURATION}ms)"
   fi
 
   i=$((i + 1))
-done
 
+  if [ "$REMAINING" = "0" ]; then
+    echo "✓ All articles fetched"
+    break
+  fi
+done
 echo ""
-echo "=== Complete ==="
+
+# ==============================
+# STEP 3: Verify Headlines
+# ==============================
+echo "🔍 Step 3: Verifying headlines..."
+
+i=1
+while true; do
+  STEP3_RESPONSE=$(curl -s "$API_BASE/api/cron/preverify-step3" --max-time 60)
+
+  STEP3_SUCCESS=$(echo "$STEP3_RESPONSE" | jq -r '.success')
+  STEP3_STATUS=$(echo "$STEP3_RESPONSE" | jq -r '.status // empty')
+
+  if [ "$STEP3_SUCCESS" != "true" ]; then
+    echo "❌ Step 3 failed: $(echo "$STEP3_RESPONSE" | jq -r '.error')"
+    break
+  fi
+
+  if [ "$STEP3_STATUS" = "complete" ]; then
+    VERIFIED_COUNT=$(echo "$STEP3_RESPONSE" | jq -r '.verified')
+    echo "✓ All $VERIFIED_COUNT headlines verified"
+    break
+  fi
+
+  if [ "$STEP3_STATUS" = "waiting" ]; then
+    echo "⏳ $(echo "$STEP3_RESPONSE" | jq -r '.message')"
+    break
+  fi
+
+  HEADLINE=$(echo "$STEP3_RESPONSE" | jq -r '.headline | .[0:50]')
+  CATEGORY=$(echo "$STEP3_RESPONSE" | jq -r '.category')
+  HAS_ARTICLE=$(echo "$STEP3_RESPONSE" | jq -r '.hasArticle')
+  REMAINING=$(echo "$STEP3_RESPONSE" | jq -r '.remaining')
+  DURATION=$(echo "$STEP3_RESPONSE" | jq -r '.durationMs')
+
+  echo "  [$i] $HEADLINE... → $CATEGORY (article: $HAS_ARTICLE, ${DURATION}ms)"
+
+  i=$((i + 1))
+
+  if [ "$REMAINING" = "0" ]; then
+    echo "✓ All headlines verified"
+    break
+  fi
+done
+echo ""
+
+echo "=== Pipeline Complete ==="

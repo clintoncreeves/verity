@@ -29,8 +29,9 @@ const redis = new Redis({
   token: process.env.KV_REST_API_TOKEN!,
 });
 
-// Cache key prefix
+// Cache key prefixes
 const CACHE_PREFIX = 'verity:trending:';
+const PIPELINE_PREFIX = 'verity:pipeline:';
 
 // Cache duration: 48 hours (2 days retention)
 const CACHE_TTL_SECONDS = 48 * 60 * 60;
@@ -224,5 +225,100 @@ export async function clearAllCache(): Promise<{ deleted: number }> {
   } catch (error) {
     console.error('[Verity] Redis clearAllCache error:', error);
     return { deleted: 0 };
+  }
+}
+
+// ============================================
+// Pipeline Stage Cache (for 3-step preverify)
+// ============================================
+
+export interface PipelineHeadline extends TrendingHeadline {
+  pipelineStage: 'fetched' | 'article_ready' | 'verified';
+  articleExcerpt?: string;
+}
+
+const PIPELINE_TTL_SECONDS = 4 * 60 * 60; // 4 hours for pipeline data
+
+/**
+ * Store headlines from step 1 (fetch from Google News)
+ */
+export async function storePipelineHeadlines(headlines: TrendingHeadline[]): Promise<void> {
+  try {
+    const pipelineHeadlines: PipelineHeadline[] = headlines.map(h => ({
+      ...h,
+      pipelineStage: 'fetched',
+    }));
+    await redis.set(`${PIPELINE_PREFIX}headlines`, pipelineHeadlines, { ex: PIPELINE_TTL_SECONDS });
+    console.log(`[Verity] Stored ${headlines.length} pipeline headlines`);
+  } catch (error) {
+    console.error('[Verity] Redis storePipelineHeadlines error:', error);
+  }
+}
+
+/**
+ * Get pipeline headlines
+ */
+export async function getPipelineHeadlines(): Promise<PipelineHeadline[]> {
+  try {
+    const headlines = await redis.get<PipelineHeadline[]>(`${PIPELINE_PREFIX}headlines`);
+    return headlines || [];
+  } catch (error) {
+    console.error('[Verity] Redis getPipelineHeadlines error:', error);
+    return [];
+  }
+}
+
+/**
+ * Update a single headline with article content (step 2)
+ */
+export async function updatePipelineHeadlineWithArticle(
+  headlineTitle: string,
+  articleExcerpt: string
+): Promise<void> {
+  try {
+    const headlines = await getPipelineHeadlines();
+    const updated = headlines.map(h => {
+      if (h.title === headlineTitle) {
+        return {
+          ...h,
+          pipelineStage: 'article_ready' as const,
+          articleExcerpt,
+        };
+      }
+      return h;
+    });
+    await redis.set(`${PIPELINE_PREFIX}headlines`, updated, { ex: PIPELINE_TTL_SECONDS });
+  } catch (error) {
+    console.error('[Verity] Redis updatePipelineHeadlineWithArticle error:', error);
+  }
+}
+
+/**
+ * Mark a headline as verified (step 3)
+ */
+export async function markPipelineHeadlineVerified(headlineTitle: string): Promise<void> {
+  try {
+    const headlines = await getPipelineHeadlines();
+    const updated = headlines.map(h => {
+      if (h.title === headlineTitle) {
+        return { ...h, pipelineStage: 'verified' as const };
+      }
+      return h;
+    });
+    await redis.set(`${PIPELINE_PREFIX}headlines`, updated, { ex: PIPELINE_TTL_SECONDS });
+  } catch (error) {
+    console.error('[Verity] Redis markPipelineHeadlineVerified error:', error);
+  }
+}
+
+/**
+ * Clear pipeline data
+ */
+export async function clearPipeline(): Promise<void> {
+  try {
+    await redis.del(`${PIPELINE_PREFIX}headlines`);
+    console.log('[Verity] Pipeline data cleared');
+  } catch (error) {
+    console.error('[Verity] Redis clearPipeline error:', error);
   }
 }
