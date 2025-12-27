@@ -29,6 +29,13 @@ export default function Home() {
   const [quotaExceeded, setQuotaExceeded] = useState(false)
   const [inputValue, setInputValue] = useState("")
 
+  // Reset to initial state (clicking logo)
+  const handleReset = () => {
+    setResult(null)
+    setQuotaExceeded(false)
+    setInputValue("")
+  }
+
   // Handle clicking a trending headline
   const handleTryClaim = (claim: string, cached?: { id: string; category: string; confidence: number; summary: string }) => {
     setInputValue(claim)
@@ -138,7 +145,7 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-background">
       <main className="container mx-auto px-4 py-4 max-w-3xl">
-        <VerityHeader />
+        <VerityHeader onReset={handleReset} />
 
         <div className="space-y-6 mt-4">
           {/* Trending headlines suggestion - above input */}
