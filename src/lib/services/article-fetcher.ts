@@ -115,8 +115,8 @@ export async function fetchArticlesForHeadlines(
 ): Promise<Map<string, { excerpt: string; resolvedUrl: string }>> {
   const results = new Map<string, { excerpt: string; resolvedUrl: string }>();
 
-  // Process in parallel but with concurrency limit
-  const CONCURRENCY = 3;
+  // Process sequentially to avoid timeouts and rate limits
+  const CONCURRENCY = 1;
   const chunks: Array<Array<{ title: string; url: string; source?: string }>> = [];
 
   for (let i = 0; i < headlines.length; i += CONCURRENCY) {

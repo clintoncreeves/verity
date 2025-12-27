@@ -41,9 +41,9 @@ export async function POST(request: NextRequest) {
       console.log(`[Verity] Cache cleanup: ${cleanupResult.deleted} old entries deleted, ${(cleanupResult as { kept: number }).kept} entries kept`);
     }
 
-    // Fetch more headlines (12-15) to increase chances of diverse verdicts
-    // We'll display 6, but verify more to ensure variety in cached results
-    const headlines = await getBestHeadlines(15);
+    // Fetch headlines - reduced to 6 to avoid timeout
+    // Article search + verification takes ~15-20s per headline
+    const headlines = await getBestHeadlines(6);
     console.log(`[Verity] Found ${headlines.length} headlines to verify`);
 
     // Filter out already cached headlines before fetching articles
