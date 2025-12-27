@@ -106,13 +106,25 @@ function detectWarnings(components: ClaimComponent[], originalClaim?: string): W
   return warnings
 }
 
+// Explanations for each verdict category
+const categoryExplanations: Record<VerificationCategory, string> = {
+  "verified": "Strong evidence from multiple reliable sources supports this claim.",
+  "likely-verified": "Most evidence supports this claim, though some minor gaps exist.",
+  "inconclusive": "Available evidence is insufficient to make a clear determination.",
+  "unverifiable": "This claim cannot be verified through available sources.",
+  "mixed-evidence": "Different sources provide conflicting information about this claim.",
+  "likely-false": "Most evidence contradicts this claim.",
+  "false": "Strong evidence from reliable sources contradicts this claim.",
+  "satire-parody": "This content appears to be intentionally satirical or humorous.",
+}
+
 /**
  * Generate a qualitative summary of verification results
  */
 function generateSummary(
   components: ClaimComponent[],
   decompositionSummary: DecompositionSummary
-): string {
+): { main: string; explanation: string | null } {
   const verifiableComponents = components.filter(
     c => c.type === "verifiable_fact" || c.type === "presupposition"
   )
@@ -121,9 +133,15 @@ function generateSummary(
 
   if (verifiableComponents.length === 0) {
     if (nonVerifiableCount > 0) {
-      return `This statement contains ${nonVerifiableCount} opinion${nonVerifiableCount > 1 ? "s" : ""} or prediction${nonVerifiableCount > 1 ? "s" : ""} that cannot be objectively verified.`
+      return {
+        main: `This statement contains ${nonVerifiableCount} opinion${nonVerifiableCount > 1 ? "s" : ""} or prediction${nonVerifiableCount > 1 ? "s" : ""} that cannot be objectively verified.`,
+        explanation: "Opinions and predictions express subjective views or future expectations that cannot be fact-checked.",
+      }
     }
-    return "No verifiable claims were identified in this statement."
+    return {
+      main: "No verifiable claims were identified in this statement.",
+      explanation: null,
+    }
   }
 
   // Count verdicts by category
@@ -156,14 +174,21 @@ function generateSummary(
   }
 
   const claimWord = verifiableComponents.length === 1 ? "claim" : "claims"
-  let summary = `Of ${verifiableComponents.length} verifiable ${claimWord}: ${parts.join(", ")}.`
+  let main = `Of ${verifiableComponents.length} verifiable ${claimWord}: ${parts.join(", ")}.`
 
   if (nonVerifiableCount > 0) {
     const opinionWord = nonVerifiableCount === 1 ? "opinion/prediction" : "opinions/predictions"
-    summary += ` This statement also contains ${nonVerifiableCount} ${opinionWord}.`
+    main += ` This statement also contains ${nonVerifiableCount} ${opinionWord}.`
   }
 
-  return summary
+  // Generate explanation based on the primary verdict
+  let explanation: string | null = null
+  if (sortedCategories.length > 0) {
+    const primaryCategory = sortedCategories[0][0] as VerificationCategory
+    explanation = categoryExplanations[primaryCategory] || null
+  }
+
+  return { main, explanation }
 }
 
 interface VerificationSummaryProps {
@@ -179,7 +204,7 @@ export function VerificationSummary({
   originalClaim,
   className,
 }: VerificationSummaryProps) {
-  const summary = generateSummary(components, decompositionSummary)
+  const { main, explanation } = generateSummary(components, decompositionSummary)
   const warnings = detectWarnings(components, originalClaim)
 
   return (
@@ -190,8 +215,13 @@ export function VerificationSummary({
           Summary
         </h4>
         <p className="text-sm leading-relaxed">
-          {summary}
+          {main}
         </p>
+        {explanation && (
+          <p className="text-sm text-muted-foreground mt-2 leading-relaxed">
+            {explanation}
+          </p>
+        )}
       </div>
 
       {/* Warnings */}

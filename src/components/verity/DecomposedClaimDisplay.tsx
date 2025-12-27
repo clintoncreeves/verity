@@ -153,9 +153,14 @@ export function DecomposedClaimDisplay({
             {component.explanation || config.description}
           </p>
           {verdictInfo && componentVerdict && (
-            <p className={cn("text-xs mt-2 font-medium", verdictInfo.badgeClass)}>
-              Verdict: {verdictInfo.config.label} ({Math.round(componentVerdict.confidence)}% confidence)
-            </p>
+            <div className="mt-2 pt-2 border-t border-muted">
+              <p className={cn("text-xs font-medium", verdictInfo.badgeClass)}>
+                {verdictInfo.config.label}
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                {verdictInfo.config.description}
+              </p>
+            </div>
           )}
         </TooltipContent>
       </Tooltip>

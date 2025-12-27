@@ -256,7 +256,7 @@ export function getDecompositionSummaryText(summary: DecompositionSummary): stri
 
   if (summary.verifiableFacts > 0) {
     parts.push(
-      `${summary.verifiableFacts} verifiable fact${summary.verifiableFacts > 1 ? 's' : ''}`
+      `${summary.verifiableFacts} claim${summary.verifiableFacts > 1 ? 's' : ''}`
     );
   }
   if (summary.valueJudgments > 0) {
