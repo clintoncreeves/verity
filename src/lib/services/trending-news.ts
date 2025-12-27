@@ -10,9 +10,12 @@ export interface TrendingHeadline {
   publishedAt: string;
 }
 
-// Google News RSS endpoints
+// Google News RSS endpoints - multiple categories for diversity
 const GOOGLE_NEWS_RSS = 'https://news.google.com/rss';
-const GOOGLE_NEWS_TOP = 'https://news.google.com/rss/topics/CAAqJggKIiBDQkFTRWdvSUwyMHZNRFZxYUdjU0FtVnVHZ0pWVXlnQVAB'; // Top stories
+const GOOGLE_NEWS_WORLD = 'https://news.google.com/rss/topics/CAAqJggKIiBDQkFTRWdvSUwyMHZNRFZxYUdjU0FtVnVHZ0pWVXlnQVAB?hl=en-US&gl=US&ceid=US:en'; // World
+const GOOGLE_NEWS_POLITICS = 'https://news.google.com/rss/topics/CAAqIQgKIhtDQkFTRGdvSUwyMHZNRFZ4ZERBU0FtVnVLQUFQAQ?hl=en-US&gl=US&ceid=US:en'; // US Politics
+const GOOGLE_NEWS_BUSINESS = 'https://news.google.com/rss/topics/CAAqJggKIiBDQkFTRWdvSUwyMHZNRGx6TVdZU0FtVnVHZ0pWVXlnQVAB?hl=en-US&gl=US&ceid=US:en'; // Business
+const GOOGLE_NEWS_HEALTH = 'https://news.google.com/rss/topics/CAAqIQgKIhtDQkFTRGdvSUwyMHZNR3QwTlRFU0FtVnVLQUFQAQ?hl=en-US&gl=US&ceid=US:en'; // Health
 
 // Cache for headlines (refresh once per hour)
 let headlinesCache: TrendingHeadline[] = [];
@@ -72,20 +75,50 @@ export async function fetchTrendingHeadlines(): Promise<TrendingHeadline[]> {
   }
 
   try {
-    const response = await fetch(GOOGLE_NEWS_RSS, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (compatible; Verity/1.0)',
-      },
-      next: { revalidate: 3600 }, // Next.js cache for 1 hour
-    });
+    // Fetch from multiple RSS feeds for more diverse headlines
+    const feeds = [
+      GOOGLE_NEWS_RSS,
+      GOOGLE_NEWS_POLITICS,
+      GOOGLE_NEWS_WORLD,
+      GOOGLE_NEWS_BUSINESS,
+      GOOGLE_NEWS_HEALTH,
+    ];
 
-    if (!response.ok) {
-      console.error('[Verity] Google News RSS failed:', response.status);
-      return headlinesCache; // Return stale cache if available
+    const allHeadlines: TrendingHeadline[] = [];
+    const seenTitles = new Set<string>();
+
+    await Promise.all(
+      feeds.map(async (feedUrl) => {
+        try {
+          const response = await fetch(feedUrl, {
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (compatible; Verity/1.0)',
+            },
+            next: { revalidate: 3600 },
+          });
+
+          if (response.ok) {
+            const xml = await response.text();
+            const feedHeadlines = parseRSSXML(xml);
+            for (const h of feedHeadlines) {
+              if (!seenTitles.has(h.title)) {
+                seenTitles.add(h.title);
+                allHeadlines.push(h);
+              }
+            }
+          }
+        } catch (e) {
+          console.error(`[Verity] Failed to fetch ${feedUrl}:`, e);
+        }
+      })
+    );
+
+    if (allHeadlines.length === 0) {
+      console.error('[Verity] All Google News RSS feeds failed');
+      return headlinesCache;
     }
 
-    const xml = await response.text();
-    const headlines = parseRSSXML(xml);
+    const headlines = allHeadlines;
 
     // Filter to headlines that look like verifiable claims
     const filteredHeadlines = headlines
