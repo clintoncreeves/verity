@@ -95,11 +95,11 @@ export function SuggestionBanner({ onTryClaim, className }: SuggestionBannerProp
       <div className={cn("w-full overflow-hidden", className)}>
         <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2">
           <TrendingUp className="w-3 h-3" />
-          <span>Loading trending topics...</span>
+          <span>Loading trending news...</span>
         </div>
         <div className="flex gap-3 animate-pulse">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="shrink-0 h-16 w-64 bg-muted rounded-lg" />
+            <div key={i} className="shrink-0 h-32 w-72 bg-muted rounded-lg" />
           ))}
         </div>
       </div>
@@ -121,7 +121,7 @@ export function SuggestionBanner({ onTryClaim, className }: SuggestionBannerProp
     >
       <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2">
         <TrendingUp className="w-3 h-3" />
-        <span>Trending topics</span>
+        <span>Trending News</span>
       </div>
 
       <div
@@ -139,27 +139,27 @@ export function SuggestionBanner({ onTryClaim, className }: SuggestionBannerProp
               key={`${headline.title}-${index}`}
               onClick={() => onTryClaim(headline.title, headline.cached)}
               className={cn(
-                "shrink-0 text-left px-4 py-3 rounded-lg border transition-all",
+                "shrink-0 text-left px-5 py-4 rounded-lg border transition-all",
                 "hover:scale-[1.02] hover:shadow-md",
                 "bg-background/80 backdrop-blur-sm",
-                "max-w-[280px] min-w-[240px]"
+                "w-[300px] min-h-[120px] flex flex-col"
               )}
             >
-              <div className="flex items-center gap-2 mb-1.5">
-                <span className="text-[10px] text-muted-foreground truncate">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-[11px] text-muted-foreground truncate">
                   {headline.source}
                 </span>
                 {categoryInfo && (
                   <Badge
                     variant="outline"
-                    className={cn("text-[9px] px-1.5 py-0 h-4 gap-0.5", categoryInfo.color, categoryInfo.borderColor)}
+                    className={cn("text-[10px] px-2 py-0.5 h-5 gap-1", categoryInfo.color, categoryInfo.borderColor)}
                   >
-                    <categoryInfo.icon className="w-2.5 h-2.5" />
+                    <categoryInfo.icon className="w-3 h-3" />
                     {categoryInfo.label}
                   </Badge>
                 )}
               </div>
-              <p className="text-xs font-medium leading-snug line-clamp-2">
+              <p className="text-sm font-medium leading-relaxed line-clamp-3 flex-1">
                 {headline.title}
               </p>
             </button>
