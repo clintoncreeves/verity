@@ -6,6 +6,7 @@ import { InputSection } from "@/components/verity/InputSection"
 import { ResultCard, type VerificationResult } from "@/components/verity/ResultCard"
 import { SuggestionBanner } from "@/components/verity/SuggestionBanner"
 import type { VerificationCategory } from "@/lib/category-config"
+import type { ClaimComponent, DecompositionSummary } from "@/types/verity"
 
 // Map backend categories to frontend categories
 const categoryMap: Record<string, VerificationCategory> = {
@@ -37,11 +38,30 @@ export default function Home() {
   }
 
   // Handle clicking a trending headline
-  const handleTryClaim = (claim: string, cached?: { id: string; category: string; confidence: number; summary: string }) => {
+  const handleTryClaim = (claim: string, cached?: {
+    id: string
+    category: string
+    confidence: number
+    summary: string
+    components?: ClaimComponent[]
+    decompositionSummary?: DecompositionSummary
+  }) => {
     setInputValue(claim)
 
     // If we have a cached result, show it immediately without API call
     if (cached) {
+      // Build decomposition from cached data if available
+      const decomposition = cached.components && cached.decompositionSummary
+        ? {
+            components: cached.components,
+            summary: cached.decompositionSummary,
+            claimVerdict: {
+              category: mapCategory(cached.category),
+              confidence: cached.confidence,
+            },
+          }
+        : undefined
+
       const cachedResult: VerificationResult = {
         category: mapCategory(cached.category),
         confidence: cached.confidence,
@@ -52,6 +72,8 @@ export default function Home() {
         factChecks: [],
         verificationId: cached.id,
         verifiedAt: new Date().toISOString(),
+        originalClaim: claim,
+        decomposition,
       }
       setResult(cachedResult)
     }

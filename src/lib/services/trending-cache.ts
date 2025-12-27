@@ -5,6 +5,7 @@
 
 import { Redis } from '@upstash/redis';
 import type { TrendingHeadline } from './trending-news';
+import type { ClaimComponent, DecompositionSummary } from '@/types/verity';
 
 export interface CachedVerification {
   headline: TrendingHeadline;
@@ -13,6 +14,9 @@ export interface CachedVerification {
     overallCategory: string;
     overallConfidence: number;
     summary: string;
+    // New decomposition data for the updated UI
+    components?: ClaimComponent[];
+    decompositionSummary?: DecompositionSummary;
   };
   cachedAt: number;
 }

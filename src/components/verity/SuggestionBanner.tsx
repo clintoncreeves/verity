@@ -1,15 +1,19 @@
 "use client"
 
 import { useState, useEffect, useRef, useCallback } from "react"
-import { TrendingUp, CheckCircle2, XCircle, AlertCircle } from "lucide-react"
+import { TrendingUp, CheckCircle2, XCircle, AlertCircle, FileText } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
+import type { ClaimComponent, DecompositionSummary } from "@/types/verity"
 
 interface CachedResult {
   id: string
   category: string
   confidence: number
   summary: string
+  // New decomposition data
+  components?: ClaimComponent[]
+  decompositionSummary?: DecompositionSummary
 }
 
 interface TrendingHeadline {
@@ -25,8 +29,86 @@ interface SuggestionBannerProps {
   className?: string
 }
 
-// Map backend categories to display info
-const categoryDisplay: Record<string, { label: string; color: string; borderColor: string; icon: typeof CheckCircle2 }> = {
+// Generate a compact summary label for the decomposition
+function getDecompositionLabel(cached: CachedResult): { label: string; color: string; borderColor: string; icon: typeof CheckCircle2 } {
+  const summary = cached.decompositionSummary
+  const components = cached.components
+
+  // If we have decomposition data, use it
+  if (summary && components) {
+    const verifiableComponents = components.filter(
+      c => c.type === "verifiable_fact" || c.type === "presupposition"
+    )
+
+    // Count verdicts from verifiable components
+    let falseCount = 0
+    let verifiedCount = 0
+    let mixedCount = 0
+
+    for (const c of verifiableComponents) {
+      if (c.verdict) {
+        const cat = c.verdict.category
+        if (cat === "confirmed_false" || cat === "likely_false") {
+          falseCount++
+        } else if (cat === "verified_fact" || cat === "expert_consensus") {
+          verifiedCount++
+        } else {
+          mixedCount++
+        }
+      }
+    }
+
+    // Determine the display based on what we found
+    if (falseCount > 0) {
+      return {
+        label: `${verifiableComponents.length} claims`,
+        color: "text-rose-600 dark:text-rose-400",
+        borderColor: "border-rose-300 dark:border-rose-600",
+        icon: XCircle
+      }
+    }
+
+    if (mixedCount > 0 || summary.valueJudgments > 0 || summary.predictions > 0) {
+      const parts: string[] = []
+      if (summary.verifiableFacts > 0) parts.push(`${summary.verifiableFacts} fact${summary.verifiableFacts > 1 ? "s" : ""}`)
+      if (summary.valueJudgments > 0) parts.push(`${summary.valueJudgments} opinion${summary.valueJudgments > 1 ? "s" : ""}`)
+      return {
+        label: parts.join(", ") || `${summary.totalComponents} parts`,
+        color: "text-amber-600 dark:text-amber-400",
+        borderColor: "border-amber-300 dark:border-amber-600",
+        icon: AlertCircle
+      }
+    }
+
+    if (verifiedCount > 0) {
+      return {
+        label: `${verifiedCount} verified`,
+        color: "text-teal-600 dark:text-teal-400",
+        borderColor: "border-teal-300 dark:border-teal-600",
+        icon: CheckCircle2
+      }
+    }
+
+    // Default: show component count
+    return {
+      label: `${summary.totalComponents} parts`,
+      color: "text-slate-500",
+      borderColor: "border-slate-300",
+      icon: FileText
+    }
+  }
+
+  // Fallback to old category-based display for cached results without decomposition
+  return categoryDisplayFallback[cached.category] || {
+    label: "Analyzed",
+    color: "text-slate-500",
+    borderColor: "border-slate-300",
+    icon: FileText
+  }
+}
+
+// Fallback for old cached results without decomposition data
+const categoryDisplayFallback: Record<string, { label: string; color: string; borderColor: string; icon: typeof CheckCircle2 }> = {
   verified_fact: { label: "Verified", color: "text-teal-600 dark:text-teal-400", borderColor: "border-teal-300 dark:border-teal-600", icon: CheckCircle2 },
   expert_consensus: { label: "Likely True", color: "text-teal-600 dark:text-teal-400", borderColor: "border-teal-300 dark:border-teal-600", icon: CheckCircle2 },
   partially_verified: { label: "Mixed", color: "text-amber-600 dark:text-amber-400", borderColor: "border-amber-300 dark:border-amber-600", icon: AlertCircle },
@@ -183,7 +265,7 @@ export function SuggestionBanner({ onTryClaim, className }: SuggestionBannerProp
       >
         {tripleHeadlines.map((headline, index) => {
           const categoryInfo = headline.cached
-            ? categoryDisplay[headline.cached.category] || categoryDisplay.opinion
+            ? getDecompositionLabel(headline.cached)
             : null
 
           return (

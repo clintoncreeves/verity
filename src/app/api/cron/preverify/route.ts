@@ -79,12 +79,19 @@ export async function POST(request: NextRequest) {
           },
         });
 
-        // Cache the result
+        // Extract decomposition data from primary claim
+        const primaryClaim = result.claims?.[0];
+        const components = primaryClaim?.components;
+        const decompositionSummary = primaryClaim?.decompositionSummary;
+
+        // Cache the result with decomposition data
         await cacheVerification(headline, {
           id: result.id,
           overallCategory: result.overallCategory,
           overallConfidence: result.overallConfidence,
           summary: result.summary,
+          components,
+          decompositionSummary,
         });
 
         results.push({

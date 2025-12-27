@@ -8,6 +8,7 @@
 import { NextResponse } from 'next/server';
 import { selectDiverseHeadlines, type TrendingHeadline } from '@/lib/services/trending-news';
 import { getAllCachedHeadlines } from '@/lib/services/trending-cache';
+import type { ClaimComponent, DecompositionSummary } from '@/types/verity';
 
 export interface TrendingHeadlineWithCache extends TrendingHeadline {
   cached?: {
@@ -15,6 +16,9 @@ export interface TrendingHeadlineWithCache extends TrendingHeadline {
     category: string;
     confidence: number;
     summary: string;
+    // Decomposition data for the new UI architecture
+    components?: ClaimComponent[];
+    decompositionSummary?: DecompositionSummary;
   };
 }
 
@@ -38,6 +42,8 @@ export async function GET() {
         category: cv.verificationResult.overallCategory,
         confidence: cv.verificationResult.overallConfidence,
         summary: cv.verificationResult.summary,
+        components: cv.verificationResult.components,
+        decompositionSummary: cv.verificationResult.decompositionSummary,
       },
     }));
 
