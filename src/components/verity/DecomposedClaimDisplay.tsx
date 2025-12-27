@@ -16,6 +16,22 @@ import {
 import { categoryConfig, type VerificationCategory } from "@/lib/category-config"
 import type { ClaimComponent, DecompositionSummary, ClaimComponentType } from "@/types/verity"
 
+// Map backend categories to frontend categories (same as in page.tsx)
+const backendCategoryMap: Record<string, VerificationCategory> = {
+  verified_fact: "verified",
+  expert_consensus: "likely-verified",
+  partially_verified: "partially-verified",
+  opinion: "unverifiable",
+  speculation: "unverifiable",
+  disputed: "mixed-evidence",
+  likely_false: "likely-false",
+  confirmed_false: "false",
+}
+
+function mapBackendCategory(backendCategory: string): VerificationCategory {
+  return backendCategoryMap[backendCategory] || "unverifiable"
+}
+
 // Verdict info passed from parent
 interface ClaimVerdict {
   category: VerificationCategory
@@ -80,7 +96,12 @@ export function DecomposedClaimDisplay({
     const isHovered = hoveredComponent === component.id
 
     // Get verdict styling for verifiable components
-    const verdictInfo = showVerdict && claimVerdict ? getVerdictBadge(claimVerdict) : null
+    // Prefer component-specific verdict, fall back to claim-level verdict
+    // Component verdicts use backend category names, so we need to map them
+    const componentVerdict = component.verdict
+      ? { category: mapBackendCategory(component.verdict.category), confidence: component.verdict.confidence }
+      : claimVerdict
+    const verdictInfo = showVerdict && componentVerdict ? getVerdictBadge(componentVerdict) : null
 
     return (
       <Tooltip key={component.id}>
@@ -131,9 +152,9 @@ export function DecomposedClaimDisplay({
           <p className="text-xs text-muted-foreground mt-1">
             {component.explanation || config.description}
           </p>
-          {verdictInfo && (
+          {verdictInfo && componentVerdict && (
             <p className={cn("text-xs mt-2 font-medium", verdictInfo.badgeClass)}>
-              Verdict: {verdictInfo.config.label} ({Math.round(claimVerdict!.confidence * 100)}% confidence)
+              Verdict: {verdictInfo.config.label} ({Math.round(componentVerdict.confidence)}% confidence)
             </p>
           )}
         </TooltipContent>

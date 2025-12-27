@@ -105,7 +105,7 @@ export async function verify(request: VerificationRequest): Promise<FullVerifica
   // Step 1: Decompose the ORIGINAL input into components (facts vs opinions)
   // This must happen BEFORE claim extraction, which filters out opinions
   console.log('[Verity] Step 1: Decomposing input into components...');
-  const inputDecomposition = await decomposeClaim(content);
+  let inputDecomposition = await decomposeClaim(content);
   console.log(`[Verity] Found ${inputDecomposition.components.length} components`);
 
   // Step 2: Extract verifiable claims from the input
@@ -184,6 +184,39 @@ export async function verify(request: VerificationRequest): Promise<FullVerifica
       components: i === 0 ? inputDecomposition.components : undefined,
       decompositionSummary: i === 0 ? inputDecomposition.summary : undefined,
     });
+  }
+
+  // Step 5b: Classify each verifiable_fact component individually
+  // This ensures compound claims like "X AND Y" get separate verdicts for each part
+  console.log('[Verity] Step 5b: Classifying individual components...');
+  const verifiableComponents = inputDecomposition.components.filter(
+    c => c.type === 'verifiable_fact'
+  );
+
+  if (verifiableComponents.length > 1) {
+    // Multiple verifiable facts - classify each separately
+    for (const component of verifiableComponents) {
+      try {
+        const componentClassification = await classifyClaim(
+          component.text,
+          allSources,
+          existingFactChecks
+        );
+        component.verdict = {
+          category: componentClassification.category,
+          confidence: Math.round(componentClassification.confidence * 100),
+        };
+      } catch (error) {
+        console.error(`[Verity] Failed to classify component: ${component.text}`, error);
+      }
+    }
+    console.log(`[Verity] Classified ${verifiableComponents.length} components individually`);
+  } else if (verifiableComponents.length === 1 && verifiedClaims.length > 0) {
+    // Single verifiable fact - use the primary claim's verdict
+    verifiableComponents[0].verdict = {
+      category: verifiedClaims[0].category,
+      confidence: verifiedClaims[0].confidence,
+    };
   }
 
   // Step 6: Determine overall classification

@@ -50,6 +50,13 @@ export interface ClaimComponent {
   type: ClaimComponentType;
   verifiabilityScore: number; // 0-1, how verifiable this component is
   explanation: string; // Brief explanation of why this type
+  // Optional verification result for this specific component
+  // Category uses backend VerificationCategory type (e.g., 'confirmed_false')
+  // Frontend components should map to their display categories as needed
+  verdict?: {
+    category: string; // Backend category string - frontend maps to display format
+    confidence: number; // 0-100
+  };
 }
 
 /**
