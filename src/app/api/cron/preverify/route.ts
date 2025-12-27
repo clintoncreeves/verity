@@ -68,12 +68,12 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Fetch article content for headlines that need verification
-    console.log(`[Verity] Fetching article content for ${headlinesToProcess.length} headlines...`);
+    // Fetch article content for headlines that need verification (using web search)
+    console.log(`[Verity] Searching for article content for ${headlinesToProcess.length} headlines...`);
     const articleContents = await fetchArticlesForHeadlines(
-      headlinesToProcess.map(h => ({ title: h.title, url: h.url }))
+      headlinesToProcess.map(h => ({ title: h.title, url: h.url, source: h.source }))
     );
-    console.log(`[Verity] Fetched ${articleContents.size} article excerpts`);
+    console.log(`[Verity] Found ${articleContents.size} article excerpts via web search`);
 
     // Enrich headlines with article content
     const enrichedHeadlines = headlinesToProcess.map(h => ({
