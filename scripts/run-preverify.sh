@@ -84,7 +84,7 @@ echo "🔍 Step 3: Verifying headlines..."
 
 i=1
 while true; do
-  STEP3_RESPONSE=$(curl -s "$API_BASE/api/cron/preverify-step3" --max-time 60)
+  STEP3_RESPONSE=$(curl -s "$API_BASE/api/cron/preverify-step3" --max-time 300)
 
   STEP3_SUCCESS=$(echo "$STEP3_RESPONSE" | jq -r '.success')
   STEP3_STATUS=$(echo "$STEP3_RESPONSE" | jq -r '.status // empty')
