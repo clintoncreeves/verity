@@ -10,6 +10,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getBestHeadlines, type TrendingHeadline } from '@/lib/services/trending-news';
 import { cacheVerification, getCachedVerification, cleanupOldCache, clearAllCache } from '@/lib/services/trending-cache';
 import { verify } from '@/lib/services/verification-orchestrator';
+import { fetchArticlesForHeadlines } from '@/lib/services/article-fetcher';
 
 // Simple auth check - require a secret token for cron jobs
 const CRON_SECRET = process.env.CRON_SECRET;
@@ -45,34 +46,66 @@ export async function POST(request: NextRequest) {
     const headlines = await getBestHeadlines(15);
     console.log(`[Verity] Found ${headlines.length} headlines to verify`);
 
+    // Filter out already cached headlines before fetching articles
+    const headlinesToProcess: TrendingHeadline[] = [];
+    const cachedResults: Array<{
+      headline: string;
+      status: 'cached';
+      category: string;
+    }> = [];
+
+    for (const headline of headlines) {
+      const cached = await getCachedVerification(headline.title);
+      if (cached) {
+        console.log(`[Verity] Skipping (cached): ${headline.title.slice(0, 50)}...`);
+        cachedResults.push({
+          headline: headline.title,
+          status: 'cached',
+          category: cached.verificationResult.overallCategory,
+        });
+      } else {
+        headlinesToProcess.push(headline);
+      }
+    }
+
+    // Fetch article content for headlines that need verification
+    console.log(`[Verity] Fetching article content for ${headlinesToProcess.length} headlines...`);
+    const articleContents = await fetchArticlesForHeadlines(
+      headlinesToProcess.map(h => ({ title: h.title, url: h.url }))
+    );
+    console.log(`[Verity] Fetched ${articleContents.size} article excerpts`);
+
+    // Enrich headlines with article content
+    const enrichedHeadlines = headlinesToProcess.map(h => ({
+      ...h,
+      articleExcerpt: articleContents.get(h.title)?.excerpt,
+      articleFetchedAt: articleContents.has(h.title) ? new Date().toISOString() : undefined,
+    }));
+
     const results: Array<{
       headline: string;
       status: 'verified' | 'cached' | 'failed';
       category?: string;
       error?: string;
-    }> = [];
+      hasArticleContent?: boolean;
+    }> = [...cachedResults];
 
-    // Process each headline
-    for (const headline of headlines) {
-      // Skip if already cached
-      const cached = await getCachedVerification(headline.title);
-      if (cached) {
-        console.log(`[Verity] Skipping (cached): ${headline.title.slice(0, 50)}...`);
-        results.push({
-          headline: headline.title,
-          status: 'cached',
-          category: cached.verificationResult.overallCategory,
-        });
-        continue;
-      }
-
+    // Process each headline with article content
+    for (const headline of enrichedHeadlines) {
       try {
         console.log(`[Verity] Verifying: ${headline.title.slice(0, 50)}...`);
 
-        // Run verification
+        // Build verification content: headline + article excerpt if available
+        let verificationContent = headline.title;
+        if (headline.articleExcerpt) {
+          verificationContent = `Headline: ${headline.title}\n\nArticle excerpt:\n${headline.articleExcerpt}`;
+          console.log(`[Verity] Using article excerpt (${headline.articleExcerpt.length} chars)`);
+        }
+
+        // Run verification with enriched content
         const result = await verify({
           type: 'text',
-          content: headline.title,
+          content: verificationContent,
           options: {
             includeFactChecks: true,
             includeWebSearch: true,
@@ -84,7 +117,7 @@ export async function POST(request: NextRequest) {
         const components = primaryClaim?.components;
         const decompositionSummary = primaryClaim?.decompositionSummary;
 
-        // Cache the result with decomposition data
+        // Cache the result with decomposition data and article excerpt
         await cacheVerification(headline, {
           id: result.id,
           overallCategory: result.overallCategory,
@@ -92,12 +125,14 @@ export async function POST(request: NextRequest) {
           summary: result.summary,
           components,
           decompositionSummary,
+          articleExcerpt: headline.articleExcerpt,
         });
 
         results.push({
           headline: headline.title,
           status: 'verified',
           category: result.overallCategory,
+          hasArticleContent: !!headline.articleExcerpt,
         });
 
         // Small delay between requests to avoid rate limiting

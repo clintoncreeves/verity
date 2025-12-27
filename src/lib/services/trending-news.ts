@@ -8,6 +8,9 @@ export interface TrendingHeadline {
   source: string;
   url: string;
   publishedAt: string;
+  // Article content fetched after selection
+  articleExcerpt?: string;
+  articleFetchedAt?: string;
 }
 
 // Google News RSS endpoints - multiple categories for diversity

@@ -14,9 +14,11 @@ export interface CachedVerification {
     overallCategory: string;
     overallConfidence: number;
     summary: string;
-    // New decomposition data for the updated UI
+    // Decomposition data for the updated UI
     components?: ClaimComponent[];
     decompositionSummary?: DecompositionSummary;
+    // Article content used for verification
+    articleExcerpt?: string;
   };
   cachedAt: number;
 }
