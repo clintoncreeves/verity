@@ -37,6 +37,10 @@ const categoryDisplay: Record<string, { label: string; color: string; borderColo
   speculation: { label: "Speculation", color: "text-slate-500", borderColor: "border-slate-300", icon: AlertCircle },
 }
 
+// Card width + gap for calculating scroll positions
+const CARD_WIDTH = 300
+const GAP = 12
+
 export function SuggestionBanner({ onTryClaim, className }: SuggestionBannerProps) {
   const [headlines, setHeadlines] = useState<TrendingHeadline[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -71,14 +75,17 @@ export function SuggestionBanner({ onTryClaim, className }: SuggestionBannerProp
     let animationFrameId: number
     const scrollSpeed = 1.5 // pixels per frame (~90px/sec at 60fps)
 
+    // Calculate the width of one set of headlines
+    const oneSetWidth = headlines.length * (CARD_WIDTH + GAP)
+
     const scroll = () => {
       if (scrollContainer && !isPaused) {
         scrollContainer.scrollLeft += scrollSpeed
 
-        // Reset to beginning when we've scrolled through half (the duplicated content)
-        const halfWidth = scrollContainer.scrollWidth / 2
-        if (scrollContainer.scrollLeft >= halfWidth) {
-          scrollContainer.scrollLeft = 0
+        // Seamless loop: when we've scrolled past one full set, jump back
+        // This creates an infinite loop effect
+        if (scrollContainer.scrollLeft >= oneSetWidth) {
+          scrollContainer.scrollLeft = scrollContainer.scrollLeft - oneSetWidth
         }
       }
       animationFrameId = requestAnimationFrame(scroll)
@@ -143,8 +150,9 @@ export function SuggestionBanner({ onTryClaim, className }: SuggestionBannerProp
     return null
   }
 
-  // Duplicate headlines for seamless infinite scroll
-  const duplicatedHeadlines = [...headlines, ...headlines]
+  // Triple the headlines to ensure smooth infinite scroll
+  // This gives us enough buffer so the reset is never visible
+  const tripleHeadlines = [...headlines, ...headlines, ...headlines]
 
   return (
     <div
@@ -159,11 +167,8 @@ export function SuggestionBanner({ onTryClaim, className }: SuggestionBannerProp
 
       <div
         ref={scrollRef}
-        className={cn(
-          "flex gap-3 overflow-x-auto scrollbar-hide",
-          // Smooth scrolling for touch devices
-          "scroll-smooth touch-pan-x"
-        )}
+        className="flex gap-3 overflow-x-auto scrollbar-hide touch-pan-x"
+        style={{ scrollBehavior: 'auto' }}
         onTouchStart={handlePause}
         onTouchEnd={() => {
           // Keep paused briefly after touch to allow manual scrolling
@@ -176,7 +181,7 @@ export function SuggestionBanner({ onTryClaim, className }: SuggestionBannerProp
         }}
         onScroll={handlePause}
       >
-        {duplicatedHeadlines.map((headline, index) => {
+        {tripleHeadlines.map((headline, index) => {
           const categoryInfo = headline.cached
             ? categoryDisplay[headline.cached.category] || categoryDisplay.opinion
             : null
@@ -186,8 +191,8 @@ export function SuggestionBanner({ onTryClaim, className }: SuggestionBannerProp
               key={`${headline.title}-${index}`}
               onClick={() => onTryClaim(headline.title, headline.cached)}
               className={cn(
-                "shrink-0 text-left px-5 py-4 rounded-lg border transition-all",
-                "hover:scale-[1.02] hover:shadow-md",
+                "shrink-0 text-left px-5 py-4 rounded-lg border transition-colors",
+                "hover:shadow-md hover:border-primary/30",
                 "bg-background/80 backdrop-blur-sm",
                 "w-[300px] min-h-[140px] flex flex-col"
               )}
