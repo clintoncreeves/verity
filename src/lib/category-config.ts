@@ -12,7 +12,7 @@ import {
 export type VerificationCategory =
   | "verified"
   | "likely-verified"
-  | "partially-verified"
+  | "inconclusive"
   | "mixed-evidence"
   | "unverifiable"
   | "likely-false"
@@ -48,14 +48,14 @@ export const categoryConfig: Record<VerificationCategory, CategoryConfig> = {
     icon: CheckCircle2,
     microcopy: "This appears solid. Most evidence points this way."
   },
-  "partially-verified": {
-    label: "Partially Verified",
-    description: "Some elements verified, others need context",
+  "inconclusive": {
+    label: "Inconclusive",
+    description: "Unable to reach a clear determination",
     color: "#F59E0B", // Warm Amber/Gold
     gradient: "from-amber-500/20 via-yellow-500/20 to-orange-400/20",
     textColor: "text-amber-600 dark:text-amber-400",
     icon: ShieldAlert,
-    microcopy: "Some parts hold up. Others need more context."
+    microcopy: "We couldn't reach a clear conclusion on this."
   },
   "mixed-evidence": {
     label: "Mixed Evidence",

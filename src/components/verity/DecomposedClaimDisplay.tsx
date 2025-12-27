@@ -20,7 +20,7 @@ import type { ClaimComponent, DecompositionSummary, ClaimComponentType } from "@
 const backendCategoryMap: Record<string, VerificationCategory> = {
   verified_fact: "verified",
   expert_consensus: "likely-verified",
-  partially_verified: "partially-verified",
+  partially_verified: "inconclusive",
   opinion: "unverifiable",
   speculation: "unverifiable",
   disputed: "mixed-evidence",
@@ -61,7 +61,7 @@ function getVerdictBadge(verdict: ClaimVerdict) {
   // Determine badge color based on category
   const isPositive = verdict.category === 'verified' || verdict.category === 'likely-verified'
   const isNegative = verdict.category === 'false' || verdict.category === 'likely-false'
-  const isMixed = verdict.category === 'mixed-evidence' || verdict.category === 'partially-verified'
+  const isMixed = verdict.category === 'mixed-evidence' || verdict.category === 'inconclusive'
 
   const badgeClass = cn(
     "text-[10px] shrink-0 flex items-center gap-1",

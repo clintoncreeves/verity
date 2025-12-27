@@ -12,7 +12,7 @@ import type { ClaimComponent, DecompositionSummary } from "@/types/verity"
 const categoryMap: Record<string, VerificationCategory> = {
   verified_fact: "verified",
   expert_consensus: "likely-verified",
-  partially_verified: "partially-verified",
+  partially_verified: "inconclusive",
   opinion: "unverifiable",
   speculation: "unverifiable",
   disputed: "mixed-evidence",

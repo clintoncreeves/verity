@@ -8,7 +8,7 @@ import type { VerificationCategory } from "@/lib/category-config"
 const backendCategoryMap: Record<string, VerificationCategory> = {
   verified_fact: "verified",
   expert_consensus: "likely-verified",
-  partially_verified: "partially-verified",
+  partially_verified: "inconclusive",
   opinion: "unverifiable",
   speculation: "unverifiable",
   disputed: "mixed-evidence",
@@ -24,7 +24,7 @@ function mapBackendCategory(backendCategory: string): VerificationCategory {
 const categoryDisplayNames: Record<VerificationCategory, string> = {
   "verified": "verified",
   "likely-verified": "likely verified",
-  "partially-verified": "partially verified",
+  "inconclusive": "inconclusive",
   "unverifiable": "unverifiable",
   "mixed-evidence": "disputed",
   "likely-false": "likely false",
@@ -37,7 +37,7 @@ const categoryPriority: Record<VerificationCategory, number> = {
   "false": 0,
   "likely-false": 1,
   "mixed-evidence": 2,
-  "partially-verified": 3,
+  "inconclusive": 3,
   "likely-verified": 4,
   "verified": 5,
   "unverifiable": 6,

@@ -5,7 +5,7 @@ export type VerificationState =
   | 'default'      // Empty void - no verification yet
   | 'verified'     // Fully filled - solid ground found
   | 'likely-verified'
-  | 'partially-verified'  // Partially filled
+  | 'inconclusive'  // Unable to determine
   | 'mixed-evidence'
   | 'unverifiable' // Empty with question - still searching
   | 'likely-false'
@@ -64,9 +64,9 @@ export function VerityLogo({
       case 'verified':
       case 'likely-verified':
         return '#0D9488'; // Teal - solid ground
-      case 'partially-verified':
+      case 'inconclusive':
       case 'mixed-evidence':
-        return '#F59E0B'; // Amber - partial
+        return '#F59E0B'; // Amber - uncertain
       case 'unverifiable':
         return '#64748B'; // Gray - uncertain
       case 'likely-false':
@@ -86,7 +86,7 @@ export function VerityLogo({
         return 1.0;
       case 'likely-verified':
         return 0.85;
-      case 'partially-verified':
+      case 'inconclusive':
         return 0.5;
       case 'mixed-evidence':
         return 0.4;
