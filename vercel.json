@@ -6,16 +6,16 @@
     }
   ],
   "functions": {
-    "src/app/api/cron/preverify-step2/route.ts": {
+    "app/api/cron/preverify-step2/route.ts": {
       "maxDuration": 60
     },
-    "src/app/api/cron/preverify-step3/route.ts": {
+    "app/api/cron/preverify-step3/route.ts": {
       "maxDuration": 60
     },
-    "src/app/api/cron/preverify-one/route.ts": {
+    "app/api/cron/preverify-one/route.ts": {
       "maxDuration": 60
     },
-    "src/app/api/verify/route.ts": {
+    "app/api/verify/route.ts": {
       "maxDuration": 60
     }
   }
