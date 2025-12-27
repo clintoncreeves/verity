@@ -10,7 +10,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getBestHeadlines, type TrendingHeadline } from '@/lib/services/trending-news';
 import { cacheVerification, getCachedVerification, cleanupOldCache, clearAllCache } from '@/lib/services/trending-cache';
 import { verify } from '@/lib/services/verification-orchestrator';
-import { fetchArticlesForHeadlines } from '@/lib/services/article-fetcher';
+// import { fetchArticlesForHeadlines } from '@/lib/services/article-fetcher'; // Disabled: requires Pro tier (60s timeout)
 
 // Simple auth check - require a secret token for cron jobs
 const CRON_SECRET = process.env.CRON_SECRET;
@@ -68,19 +68,10 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Fetch article content for headlines that need verification (using web search)
-    console.log(`[Verity] Searching for article content for ${headlinesToProcess.length} headlines...`);
-    const articleContents = await fetchArticlesForHeadlines(
-      headlinesToProcess.map(h => ({ title: h.title, url: h.url, source: h.source }))
-    );
-    console.log(`[Verity] Found ${articleContents.size} article excerpts via web search`);
-
-    // Enrich headlines with article content
-    const enrichedHeadlines = headlinesToProcess.map(h => ({
-      ...h,
-      articleExcerpt: articleContents.get(h.title)?.excerpt,
-      articleFetchedAt: articleContents.has(h.title) ? new Date().toISOString() : undefined,
-    }));
+    // Skip article fetching on free Vercel tier (10s timeout limit)
+    // Article search with web search takes ~30-40s per headline
+    // TODO: Re-enable when upgrading to Pro tier (60s timeout)
+    const enrichedHeadlines = headlinesToProcess;
 
     const results: Array<{
       headline: string;
