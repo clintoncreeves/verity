@@ -17,13 +17,6 @@ import { getCachedVerification, cleanupOldCache, clearAllCache } from '@/lib/ser
 // Simple auth check - require a secret token for cron jobs
 const CRON_SECRET = process.env.CRON_SECRET;
 
-// Get the base URL for internal API calls
-function getBaseUrl(request: NextRequest): string {
-  // Use the request's origin for internal calls
-  const url = new URL(request.url);
-  return `${url.protocol}//${url.host}`;
-}
-
 export async function POST(request: NextRequest) {
   // Verify authorization
   const authHeader = request.headers.get('authorization');
@@ -79,69 +72,44 @@ export async function POST(request: NextRequest) {
 
     const results: Array<{
       headline: string;
-      status: 'verified' | 'cached' | 'dispatched' | 'failed';
+      status: 'verified' | 'cached' | 'pending' | 'failed';
       category?: string;
       error?: string;
       hasArticleContent?: boolean;
     }> = [...cachedResults];
 
-    // Dispatch each headline to preverify-one endpoint (fire-and-forget)
-    // We can't wait for responses on free tier due to 10s timeout
-    // Each preverify-one call will cache its own result
-    const baseUrl = getBaseUrl(request);
-
+    // On free tier, we can't process headlines inline (10s timeout)
+    // Return the pending headlines so an external caller can process them
+    // via sequential calls to /api/cron/preverify-one
     for (const headline of headlinesToProcess) {
-      try {
-        console.log(`[Verity] Dispatching: ${headline.title.slice(0, 50)}...`);
-
-        // Fire-and-forget: dispatch without awaiting the response
-        // The preverify-one endpoint will cache the result when done
-        fetch(`${baseUrl}/api/cron/preverify-one`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(CRON_SECRET ? { Authorization: `Bearer ${CRON_SECRET}` } : {}),
-          },
-          body: JSON.stringify({ headline }),
-        }).catch(err => {
-          // Log but don't throw - this is fire-and-forget
-          console.error(`[Verity] Background dispatch failed for: ${headline.title.slice(0, 30)}...`, err);
-        });
-
-        results.push({
-          headline: headline.title,
-          status: 'dispatched',
-        });
-      } catch (error) {
-        console.error(`[Verity] Failed to dispatch: ${headline.title}`, error);
-        results.push({
-          headline: headline.title,
-          status: 'failed',
-          error: error instanceof Error ? error.message : 'Unknown error',
-        });
-      }
+      results.push({
+        headline: headline.title,
+        status: 'pending',
+      });
     }
 
     const durationMs = Date.now() - startTime;
-    const dispatched = results.filter(r => r.status === 'dispatched').length;
+    const pending = results.filter(r => r.status === 'pending').length;
     const cached = results.filter(r => r.status === 'cached').length;
     const failed = results.filter(r => r.status === 'failed').length;
 
-    console.log(`[Verity] Pre-verification dispatched: ${dispatched} dispatched, ${cached} cached, ${failed} failed (${durationMs}ms)`);
+    console.log(`[Verity] Pre-verification check: ${pending} pending, ${cached} cached, ${failed} failed (${durationMs}ms)`);
 
     return NextResponse.json({
       success: true,
       summary: {
         total: headlines.length,
-        dispatched,
+        pending,
         cached,
         failed,
         durationMs,
         cleanup: cleanupResult,
       },
       results,
-      note: dispatched > 0
-        ? 'Headlines dispatched for background processing. Results will be cached when complete.'
+      // Include full headline objects for pending items so caller can process them
+      pendingHeadlines: headlinesToProcess,
+      note: pending > 0
+        ? 'Call /api/cron/preverify-one for each pending headline to process.'
         : undefined,
     });
   } catch (error) {
