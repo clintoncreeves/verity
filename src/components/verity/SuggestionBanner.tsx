@@ -81,9 +81,6 @@ export function SuggestionBanner({ onTryClaim, className }: SuggestionBannerProp
     return null
   }
 
-  // Duplicate headlines for seamless infinite scroll
-  const duplicatedHeadlines = [...headlines, ...headlines]
-
   return (
     <div
       className={cn("w-full overflow-hidden", className)}
@@ -99,28 +96,68 @@ export function SuggestionBanner({ onTryClaim, className }: SuggestionBannerProp
 
       <div
         className={cn(
-          "flex gap-3 overflow-x-auto scrollbar-hide",
+          "flex gap-3",
           !isPaused && "animate-scroll"
         )}
         style={{
           animationDuration: `${headlines.length * 5}s`,
+          // Width is calculated: (card width + gap) * number of headlines
+          // This ensures the animation loops perfectly
+          width: `calc((300px + 12px) * ${headlines.length * 2})`,
         }}
       >
-        {duplicatedHeadlines.map((headline, index) => {
+        {/* First set of headlines */}
+        {headlines.map((headline, index) => {
           const categoryInfo = headline.cached
             ? categoryDisplay[headline.cached.category] || categoryDisplay.opinion
             : null
 
           return (
             <button
-              key={`${headline.title}-${index}`}
+              key={`first-${headline.title}-${index}`}
               onClick={() => onTryClaim(headline.title, headline.cached)}
               className={cn(
                 "shrink-0 text-left px-5 py-4 rounded-lg border transition-all",
                 "hover:scale-[1.02] hover:shadow-md",
                 "bg-background/80 backdrop-blur-sm",
-                "w-[300px] min-h-[140px] flex flex-col",
-                "lg:w-[360px] xl:w-[400px]"
+                "w-[300px] min-h-[140px] flex flex-col"
+              )}
+            >
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-[11px] text-muted-foreground truncate">
+                  {headline.source}
+                </span>
+                {categoryInfo && (
+                  <Badge
+                    variant="outline"
+                    className={cn("text-[10px] px-2 py-0.5 h-5 gap-1", categoryInfo.color, categoryInfo.borderColor)}
+                  >
+                    <categoryInfo.icon className="w-3 h-3" />
+                    {categoryInfo.label}
+                  </Badge>
+                )}
+              </div>
+              <p className="text-sm lg:text-base font-medium leading-relaxed line-clamp-3 flex-1">
+                {headline.title}
+              </p>
+            </button>
+          )
+        })}
+        {/* Duplicate set for seamless loop */}
+        {headlines.map((headline, index) => {
+          const categoryInfo = headline.cached
+            ? categoryDisplay[headline.cached.category] || categoryDisplay.opinion
+            : null
+
+          return (
+            <button
+              key={`second-${headline.title}-${index}`}
+              onClick={() => onTryClaim(headline.title, headline.cached)}
+              className={cn(
+                "shrink-0 text-left px-5 py-4 rounded-lg border transition-all",
+                "hover:scale-[1.02] hover:shadow-md",
+                "bg-background/80 backdrop-blur-sm",
+                "w-[300px] min-h-[140px] flex flex-col"
               )}
             >
               <div className="flex items-center gap-2 mb-2">
