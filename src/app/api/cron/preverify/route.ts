@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
     // Process each headline
     for (const headline of headlines) {
       // Skip if already cached
-      const cached = getCachedVerification(headline.title);
+      const cached = await getCachedVerification(headline.title);
       if (cached) {
         console.log(`[Verity] Skipping (cached): ${headline.title.slice(0, 50)}...`);
         results.push({
@@ -64,7 +64,7 @@ export async function POST(request: NextRequest) {
         });
 
         // Cache the result
-        cacheVerification(headline, {
+        await cacheVerification(headline, {
           id: result.id,
           overallCategory: result.overallCategory,
           overallConfidence: result.overallConfidence,

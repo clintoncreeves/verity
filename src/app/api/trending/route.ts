@@ -29,21 +29,23 @@ export async function GET() {
     }
 
     // Attach cached verification results if available
-    const headlinesWithCache: TrendingHeadlineWithCache[] = headlines.map(headline => {
-      const cached = getCachedVerification(headline.title);
-      if (cached) {
-        return {
-          ...headline,
-          cached: {
-            id: cached.verificationResult.id,
-            category: cached.verificationResult.overallCategory,
-            confidence: cached.verificationResult.overallConfidence,
-            summary: cached.verificationResult.summary,
-          },
-        };
-      }
-      return headline;
-    });
+    const headlinesWithCache: TrendingHeadlineWithCache[] = await Promise.all(
+      headlines.map(async (headline) => {
+        const cached = await getCachedVerification(headline.title);
+        if (cached) {
+          return {
+            ...headline,
+            cached: {
+              id: cached.verificationResult.id,
+              category: cached.verificationResult.overallCategory,
+              confidence: cached.verificationResult.overallConfidence,
+              summary: cached.verificationResult.summary,
+            },
+          };
+        }
+        return headline;
+      })
+    );
 
     return NextResponse.json({
       success: true,
