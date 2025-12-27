@@ -98,7 +98,7 @@ export async function fetchTrendingHeadlines(): Promise<TrendingHeadline[]> {
         if (/^\d+\s/.test(h.title) || h.title.toLowerCase().startsWith('how to')) return false;
         return true;
       })
-      .slice(0, 20); // Keep top 20
+      .slice(0, 50); // Keep top 50 for more variety
 
     headlinesCache = filteredHeadlines;
     lastFetchTime = now;

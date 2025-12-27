@@ -25,8 +25,9 @@ export async function POST(request: NextRequest) {
   const startTime = Date.now();
 
   try {
-    // Fetch best headlines (5-8 based on scoring)
-    const headlines = await getBestHeadlines(8);
+    // Fetch more headlines (12-15) to increase chances of diverse verdicts
+    // We'll display 6, but verify more to ensure variety in cached results
+    const headlines = await getBestHeadlines(15);
     console.log(`[Verity] Found ${headlines.length} headlines to verify`);
 
     const results: Array<{
