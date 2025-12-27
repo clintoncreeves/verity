@@ -8,6 +8,47 @@ import type { VerificationCategory, Source, ExistingFactCheck } from '@/types/ve
 import { containsValueJudgmentKeywords, containsIntentClaim, isFalseVerdict, isAncientHistoricalClaim } from '@/lib/utils/verdict-utils';
 import { CLAUDE_CONFIG } from '@/lib/config/constants';
 
+/**
+ * Clean up reasoning text by removing forbidden phrases that expose internal process limitations
+ * This is a post-processing fallback in case the LLM ignores prompt instructions
+ */
+function cleanReasoningText(text: string): string {
+  // Patterns to remove (with surrounding context if needed)
+  const forbiddenPatterns = [
+    // Full sentence patterns - remove entire sentence
+    /\s*However,?\s+the\s+sources?\s+provide[d]?\s+[^.]+\./gi,
+    /\s*The\s+sources?\s+provide[d]?\s+[^.]+\./gi,
+    /\s*[^.]*lack\s+of\s+(specific\s+)?details?[^.]*\./gi,
+    /\s*[^.]*which\s+is\s+not\s+provided\s+in\s+these\s+excerpts?[^.]*\./gi,
+    /\s*[^.]*from\s+these\s+excerpts?\s+alone[^.]*\./gi,
+    /\s*[^.]*available\s+excerpts?[^.]*\./gi,
+    /\s*[^.]*limits?\s+confidence[^.]*\./gi,
+    /\s*[^.]*prevents?\s+(higher\s+)?confidence[^.]*\./gi,
+    /\s*[^.]*constrains?\s+verification[^.]*\./gi,
+    /\s*[^.]*remain\s+unclear[^.]*\./gi,
+    /\s*[^.]*unclear\s+from\s+[^.]+\./gi,
+  ];
+
+  let cleaned = text;
+  for (const pattern of forbiddenPatterns) {
+    cleaned = cleaned.replace(pattern, '');
+  }
+
+  // Clean up any double spaces or leading/trailing whitespace
+  cleaned = cleaned.replace(/\s{2,}/g, ' ').trim();
+
+  // If we removed too much, return a simplified version
+  if (cleaned.length < 50 && text.length > 100) {
+    // Extract just the first substantive sentence
+    const firstSentence = text.match(/^[^.]+\./);
+    if (firstSentence) {
+      return firstSentence[0];
+    }
+  }
+
+  return cleaned;
+}
+
 export interface ClassificationResult {
   category: VerificationCategory;
   confidence: number;
@@ -108,21 +149,20 @@ EXPLAINING VERIFIABLE VS OPINION:
 - This distinction is the core value Verity provides
 
 WRITING STYLE FOR REASONING:
-- Write for end users, not analysts. Focus on what we found, not process limitations.
-- ABSOLUTELY FORBIDDEN phrases - NEVER use any of these:
-  * "the sources provided" or "provided sources"
-  * "limited detail" or "limited evidence" or "limited information"
-  * "excerpts" or "snippets"
-  * "prevents higher confidence" or "constrains verification"
-  * "couldn't find" or "unable to find"
-  * "insufficient evidence"
-  * Any reference to the search process, source quality, or evidence limitations
-- Instead, focus ONLY on what IS confirmed and what naturally remains uncertain
-- If details vary, say "details vary across reports" NOT "sources lack detail"
-- Good: "Multiple sources confirm the bill was pre-filed. The specific bill number has not been widely reported."
-- Bad: "The sources provided contain limited detail about the bill number."
-- Good: "This event is confirmed by Reuters, AP, and BBC."
-- Bad: "The excerpts prevent higher confidence classification."
+- Write for end users, not analysts. Focus ONLY on what we found.
+- ABSOLUTELY FORBIDDEN - Using any of these phrases will cause the system to fail:
+  * "sources provided" / "provided sources" / "the sources"
+  * "limited detail" / "limited evidence" / "minimal details" / "lack of details"
+  * "excerpts" / "snippets" / "available excerpts"
+  * "prevents" / "constrains" / "limits confidence"
+  * "couldn't find" / "unable to find" / "not provided"
+  * "insufficient" / "unclear from" / "remain unclear"
+  * ANY meta-commentary about the search or evidence quality
+- Write ONLY about the claim and what is confirmed
+- Good: "Multiple sources confirm X happened. The timing varies across reports."
+- Bad: "The sources provided contain limited detail..." (FORBIDDEN)
+- Good: "Reuters, AP, and BBC report this event occurred."
+- Bad: "...which is not provided in these excerpts" (FORBIDDEN)
 
 OUTPUT: Return JSON with:
 - category: one of the 8 categories above
@@ -242,6 +282,9 @@ export async function classifyClaim(
         result.reasoning = `${result.reasoning} Note: Claims about ancient history rely on indirect evidence and scholarly interpretation rather than direct verification.`;
       }
     }
+
+    // POST-PROCESS: Remove any remaining forbidden phrases the LLM might have generated
+    result.reasoning = cleanReasoningText(result.reasoning);
 
     return result;
 
