@@ -218,7 +218,7 @@ export async function getBestHeadlines(count: number = 6): Promise<TrendingHeadl
     .map(h => ({ headline: h, score: scoreHeadline(h) }))
     .sort((a, b) => b.score - a.score);
 
-  // Take top headlines, but ensure variety
+  // Take top headlines, but ensure variety by source
   const selected: TrendingHeadline[] = [];
   const usedSources = new Set<string>();
 
@@ -243,6 +243,68 @@ export async function getBestHeadlines(count: number = 6): Promise<TrendingHeadl
         selected.push(headline);
         if (selected.length >= count) break;
       }
+    }
+  }
+
+  return selected;
+}
+
+// Verdict diversity buckets for better showcase
+type VerdictBucket = 'verified' | 'mixed' | 'false';
+
+function getVerdictBucket(category: string): VerdictBucket {
+  if (['verified_fact', 'expert_consensus'].includes(category)) return 'verified';
+  if (['likely_false', 'confirmed_false'].includes(category)) return 'false';
+  return 'mixed'; // partially_verified, disputed, opinion, speculation
+}
+
+/**
+ * Select headlines with diverse verdicts to showcase Verity's range
+ * Prioritizes showing a mix of verified, mixed, and false verdicts
+ */
+export function selectDiverseHeadlines<T extends { cached?: { category: string } }>(
+  headlines: T[],
+  targetCount: number = 6
+): T[] {
+  // Separate by verdict bucket
+  const buckets: Record<VerdictBucket, T[]> = {
+    verified: [],
+    mixed: [],
+    false: [],
+  };
+
+  for (const headline of headlines) {
+    if (headline.cached) {
+      const bucket = getVerdictBucket(headline.cached.category);
+      buckets[bucket].push(headline);
+    } else {
+      // Uncached go to mixed (neutral)
+      buckets.mixed.push(headline);
+    }
+  }
+
+  // Select with diversity: prioritize mixed/false results to show Verity's range
+  // Ideal mix: 2-3 verified, 2-3 mixed/opinion, 1-2 false/disputed
+  const selected: T[] = [];
+
+  // First, take non-verified results (more interesting for demo)
+  const nonVerified = [...buckets.mixed, ...buckets.false];
+  for (const h of nonVerified) {
+    if (selected.length >= Math.ceil(targetCount * 0.6)) break; // Max 60% non-verified
+    selected.push(h);
+  }
+
+  // Fill rest with verified
+  for (const h of buckets.verified) {
+    if (selected.length >= targetCount) break;
+    selected.push(h);
+  }
+
+  // If still not enough, add any remaining
+  for (const h of headlines) {
+    if (selected.length >= targetCount) break;
+    if (!selected.includes(h)) {
+      selected.push(h);
     }
   }
 

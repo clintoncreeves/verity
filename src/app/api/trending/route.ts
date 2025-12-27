@@ -5,7 +5,7 @@
  */
 
 import { NextResponse } from 'next/server';
-import { getBestHeadlines, type TrendingHeadline } from '@/lib/services/trending-news';
+import { getBestHeadlines, selectDiverseHeadlines, type TrendingHeadline } from '@/lib/services/trending-news';
 import { getCachedVerification } from '@/lib/services/trending-cache';
 
 export interface TrendingHeadlineWithCache extends TrendingHeadline {
@@ -47,9 +47,12 @@ export async function GET() {
       })
     );
 
+    // Reorder to prioritize verdict diversity (show mix of verified/mixed/false)
+    const diverseHeadlines = selectDiverseHeadlines(headlinesWithCache, 6);
+
     return NextResponse.json({
       success: true,
-      data: headlinesWithCache,
+      data: diverseHeadlines,
     });
   } catch (error) {
     console.error('[Verity] Trending API error:', error);
