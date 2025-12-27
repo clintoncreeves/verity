@@ -97,13 +97,13 @@ export function SuggestionBanner({ onTryClaim, className }: SuggestionBannerProp
       <div
         className={cn(
           "flex gap-3",
-          !isPaused && "animate-scroll"
+          isPaused ? "overflow-x-auto scrollbar-hide" : "animate-scroll"
         )}
         style={{
           animationDuration: `${headlines.length * 8}s`,
           // Width is calculated: (card width + gap) * number of headlines
           // This ensures the animation loops perfectly
-          width: `calc((300px + 12px) * ${headlines.length * 2})`,
+          width: isPaused ? "auto" : `calc((300px + 12px) * ${headlines.length * 2})`,
         }}
       >
         {/* First set of headlines */}
