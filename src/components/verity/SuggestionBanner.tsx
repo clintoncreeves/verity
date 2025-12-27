@@ -157,7 +157,7 @@ export function SuggestionBanner({ onTryClaim, className }: SuggestionBannerProp
 
     const scrollContainer = scrollRef.current
     let animationFrameId: number
-    const scrollSpeed = 1.8 // pixels per frame (~108px/sec at 60fps, ~3s per card)
+    const scrollSpeed = 2.6 // pixels per frame (~156px/sec at 60fps, ~2s per card)
 
     // Calculate the width of one set of headlines
     const oneSetWidth = headlines.length * (CARD_WIDTH + GAP)
