@@ -2,18 +2,27 @@
  * Cron job to pre-verify trending headlines
  * Run daily to cache verification results for trending topics
  *
+ * Architecture: This endpoint chains calls to /api/cron/preverify-one
+ * Each headline is processed in a separate request to stay within
+ * Vercel's 10s timeout limit on the free tier.
+ *
  * Trigger: Vercel Cron or manual call with auth
  * POST /api/cron/preverify
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getBestHeadlines, type TrendingHeadline } from '@/lib/services/trending-news';
-import { cacheVerification, getCachedVerification, cleanupOldCache, clearAllCache } from '@/lib/services/trending-cache';
-import { verify } from '@/lib/services/verification-orchestrator';
-// import { fetchArticlesForHeadlines } from '@/lib/services/article-fetcher'; // Disabled: requires Pro tier (60s timeout)
+import { getCachedVerification, cleanupOldCache, clearAllCache } from '@/lib/services/trending-cache';
 
 // Simple auth check - require a secret token for cron jobs
 const CRON_SECRET = process.env.CRON_SECRET;
+
+// Get the base URL for internal API calls
+function getBaseUrl(request: NextRequest): string {
+  // Use the request's origin for internal calls
+  const url = new URL(request.url);
+  return `${url.protocol}//${url.host}`;
+}
 
 export async function POST(request: NextRequest) {
   // Verify authorization
@@ -68,100 +77,72 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Skip article fetching on free Vercel tier (10s timeout limit)
-    // Article search with web search takes ~30-40s per headline
-    // TODO: Re-enable when upgrading to Pro tier (60s timeout)
-    const enrichedHeadlines = headlinesToProcess;
-
     const results: Array<{
       headline: string;
-      status: 'verified' | 'cached' | 'failed';
+      status: 'verified' | 'cached' | 'dispatched' | 'failed';
       category?: string;
       error?: string;
       hasArticleContent?: boolean;
     }> = [...cachedResults];
 
-    // Process each headline with article content
-    for (const headline of enrichedHeadlines) {
+    // Dispatch each headline to preverify-one endpoint (fire-and-forget)
+    // We can't wait for responses on free tier due to 10s timeout
+    // Each preverify-one call will cache its own result
+    const baseUrl = getBaseUrl(request);
+
+    for (const headline of headlinesToProcess) {
       try {
-        console.log(`[Verity] Verifying: ${headline.title.slice(0, 50)}...`);
+        console.log(`[Verity] Dispatching: ${headline.title.slice(0, 50)}...`);
 
-        // Build verification content: headline + article excerpt if available
-        let verificationContent = headline.title;
-        if (headline.articleExcerpt) {
-          verificationContent = `Headline: ${headline.title}\n\nArticle excerpt:\n${headline.articleExcerpt}`;
-          console.log(`[Verity] Using article excerpt (${headline.articleExcerpt.length} chars)`);
-        }
-
-        // Run verification with enriched content
-        const result = await verify({
-          type: 'text',
-          content: verificationContent,
-          options: {
-            includeFactChecks: true,
-            includeWebSearch: true,
+        // Fire-and-forget: dispatch without awaiting the response
+        // The preverify-one endpoint will cache the result when done
+        fetch(`${baseUrl}/api/cron/preverify-one`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(CRON_SECRET ? { Authorization: `Bearer ${CRON_SECRET}` } : {}),
           },
-        });
-
-        // Extract decomposition data from primary claim
-        const primaryClaim = result.claims?.[0];
-        const components = primaryClaim?.components;
-        const decompositionSummary = primaryClaim?.decompositionSummary;
-
-        // Cache the result with decomposition data and article excerpt
-        await cacheVerification(headline, {
-          id: result.id,
-          overallCategory: result.overallCategory,
-          overallConfidence: result.overallConfidence,
-          summary: result.summary,
-          components,
-          decompositionSummary,
-          articleExcerpt: headline.articleExcerpt,
+          body: JSON.stringify({ headline }),
+        }).catch(err => {
+          // Log but don't throw - this is fire-and-forget
+          console.error(`[Verity] Background dispatch failed for: ${headline.title.slice(0, 30)}...`, err);
         });
 
         results.push({
           headline: headline.title,
-          status: 'verified',
-          category: result.overallCategory,
-          hasArticleContent: !!headline.articleExcerpt,
+          status: 'dispatched',
         });
-
-        // Small delay between requests to avoid rate limiting
-        await new Promise(resolve => setTimeout(resolve, 1000));
       } catch (error) {
-        console.error(`[Verity] Failed to verify: ${headline.title}`, error);
+        console.error(`[Verity] Failed to dispatch: ${headline.title}`, error);
         results.push({
           headline: headline.title,
           status: 'failed',
           error: error instanceof Error ? error.message : 'Unknown error',
         });
-
-        // If we hit quota, stop processing
-        if (error instanceof Error && error.message.includes('quota')) {
-          console.log('[Verity] Quota exceeded, stopping batch job');
-          break;
-        }
       }
     }
 
     const durationMs = Date.now() - startTime;
-    const verified = results.filter(r => r.status === 'verified').length;
+    const dispatched = results.filter(r => r.status === 'dispatched').length;
     const cached = results.filter(r => r.status === 'cached').length;
     const failed = results.filter(r => r.status === 'failed').length;
 
-    console.log(`[Verity] Pre-verification complete: ${verified} verified, ${cached} cached, ${failed} failed (${durationMs}ms)`);
+    console.log(`[Verity] Pre-verification dispatched: ${dispatched} dispatched, ${cached} cached, ${failed} failed (${durationMs}ms)`);
 
     return NextResponse.json({
       success: true,
       summary: {
         total: headlines.length,
-        verified,
+        dispatched,
         cached,
         failed,
         durationMs,
         cleanup: cleanupResult,
       },
       results,
+      note: dispatched > 0
+        ? 'Headlines dispatched for background processing. Results will be cached when complete.'
+        : undefined,
     });
   } catch (error) {
     console.error('[Verity] Pre-verification batch job failed:', error);
