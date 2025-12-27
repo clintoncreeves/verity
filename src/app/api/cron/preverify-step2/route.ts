@@ -13,6 +13,7 @@ import {
   type PipelineHeadline,
 } from '@/lib/services/trending-cache';
 
+export const runtime = 'nodejs';
 export const maxDuration = 60; // 60s timeout for Pro plan
 
 export async function POST(request: NextRequest) {

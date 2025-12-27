@@ -13,6 +13,7 @@ import {
 } from '@/lib/services/trending-cache';
 import { verify } from '@/lib/services/verification-orchestrator';
 
+export const runtime = 'nodejs';
 export const maxDuration = 60; // 60s timeout for Pro plan
 
 export async function POST(request: NextRequest) {
