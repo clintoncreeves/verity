@@ -109,13 +109,20 @@ EXPLAINING VERIFIABLE VS OPINION:
 
 WRITING STYLE FOR REASONING:
 - Write for end users, not analysts. Focus on what we found, not process limitations.
-- NEVER say things like "the sources provided contain limited detail", "the excerpts prevent higher confidence", "we couldn't find sufficient evidence"
-- NEVER expose internal process limitations or apologize for evidence quality
-- DO state what multiple sources confirm and what remains uncertain
-- DO explain what makes something partially verified (e.g., "the event is confirmed but timing details vary across sources")
-- If confidence is lower, frame it as natural uncertainty in the claim, not a failure of our search
-- Good: "Multiple sources confirm X. The specific details about Y vary across reports."
-- Bad: "The sources provided contain limited direct evidence, preventing higher confidence."
+- ABSOLUTELY FORBIDDEN phrases - NEVER use any of these:
+  * "the sources provided" or "provided sources"
+  * "limited detail" or "limited evidence" or "limited information"
+  * "excerpts" or "snippets"
+  * "prevents higher confidence" or "constrains verification"
+  * "couldn't find" or "unable to find"
+  * "insufficient evidence"
+  * Any reference to the search process, source quality, or evidence limitations
+- Instead, focus ONLY on what IS confirmed and what naturally remains uncertain
+- If details vary, say "details vary across reports" NOT "sources lack detail"
+- Good: "Multiple sources confirm the bill was pre-filed. The specific bill number has not been widely reported."
+- Bad: "The sources provided contain limited detail about the bill number."
+- Good: "This event is confirmed by Reuters, AP, and BBC."
+- Bad: "The excerpts prevent higher confidence classification."
 
 OUTPUT: Return JSON with:
 - category: one of the 8 categories above
