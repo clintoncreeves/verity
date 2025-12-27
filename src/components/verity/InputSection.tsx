@@ -47,7 +47,7 @@ export function InputSection({ onVerify, isLoading = false, initialValue, onValu
   }
 
   return (
-    <Card className="w-full max-w-3xl mx-auto p-4">
+    <Card className="w-full p-4 lg:p-6">
       <div className="space-y-3">
         <div className="space-y-1.5">
           <Textarea
