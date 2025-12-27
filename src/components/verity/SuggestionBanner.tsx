@@ -11,7 +11,6 @@ interface CachedResult {
   category: string
   confidence: number
   summary: string
-  // New decomposition data
   components?: ClaimComponent[]
   decompositionSummary?: DecompositionSummary
 }
@@ -29,18 +28,15 @@ interface SuggestionBannerProps {
   className?: string
 }
 
-// Generate a compact summary label for the decomposition
 function getDecompositionLabel(cached: CachedResult): { label: string; color: string; borderColor: string; icon: typeof CheckCircle2 } {
   const summary = cached.decompositionSummary
   const components = cached.components
 
-  // If we have decomposition data, use it
   if (summary && components) {
     const verifiableComponents = components.filter(
       c => c.type === "verifiable_fact" || c.type === "presupposition"
     )
 
-    // Count verdicts from verifiable components
     let falseCount = 0
     let verifiedCount = 0
     let mixedCount = 0
@@ -58,9 +54,7 @@ function getDecompositionLabel(cached: CachedResult): { label: string; color: st
       }
     }
 
-    // Determine the display based on what we found
     if (falseCount > 0) {
-      // Show breakdown: "6 claims, 1 likely false"
       const falseLabel = falseCount === 1 ? "1 likely false" : `${falseCount} likely false`
       return {
         label: `${verifiableComponents.length} claims, ${falseLabel}`,
@@ -91,7 +85,6 @@ function getDecompositionLabel(cached: CachedResult): { label: string; color: st
       }
     }
 
-    // Default: show component count
     return {
       label: `${summary.totalComponents} parts`,
       color: "text-slate-500",
@@ -100,7 +93,6 @@ function getDecompositionLabel(cached: CachedResult): { label: string; color: st
     }
   }
 
-  // Fallback to old category-based display for cached results without decomposition
   return categoryDisplayFallback[cached.category] || {
     label: "Analyzed",
     color: "text-slate-500",
@@ -109,7 +101,6 @@ function getDecompositionLabel(cached: CachedResult): { label: string; color: st
   }
 }
 
-// Fallback for old cached results without decomposition data
 const categoryDisplayFallback: Record<string, { label: string; color: string; borderColor: string; icon: typeof CheckCircle2 }> = {
   verified_fact: { label: "Verified", color: "text-teal-600 dark:text-teal-400", borderColor: "border-teal-300 dark:border-teal-600", icon: CheckCircle2 },
   expert_consensus: { label: "Likely True", color: "text-teal-600 dark:text-teal-400", borderColor: "border-teal-300 dark:border-teal-600", icon: CheckCircle2 },
@@ -121,7 +112,7 @@ const categoryDisplayFallback: Record<string, { label: string; color: string; bo
   speculation: { label: "Speculation", color: "text-slate-500", borderColor: "border-slate-300", icon: AlertCircle },
 }
 
-// Card width + gap for calculating scroll positions
+// Card dimensions
 const CARD_WIDTH = 300
 const GAP = 12
 
@@ -129,7 +120,6 @@ export function SuggestionBanner({ onTryClaim, className }: SuggestionBannerProp
   const [headlines, setHeadlines] = useState<TrendingHeadline[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isPaused, setIsPaused] = useState(false)
-  const scrollRef = useRef<HTMLDivElement>(null)
   const pauseTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   useEffect(() => {
@@ -151,61 +141,23 @@ export function SuggestionBanner({ onTryClaim, className }: SuggestionBannerProp
     fetchTrending()
   }, [])
 
-  // Smooth auto-scroll using requestAnimationFrame
-  useEffect(() => {
-    if (isPaused || headlines.length === 0 || !scrollRef.current) return
-
-    const scrollContainer = scrollRef.current
-    let animationFrameId: number
-    const scrollSpeed = 2.6 // pixels per frame (~156px/sec at 60fps, ~2s per card)
-
-    // Calculate the width of one set of headlines
-    const oneSetWidth = headlines.length * (CARD_WIDTH + GAP)
-
-    const scroll = () => {
-      if (scrollContainer && !isPaused) {
-        scrollContainer.scrollLeft += scrollSpeed
-
-        // Seamless loop: when we've scrolled past one full set, jump back
-        // This creates an infinite loop effect
-        if (scrollContainer.scrollLeft >= oneSetWidth) {
-          scrollContainer.scrollLeft = scrollContainer.scrollLeft - oneSetWidth
-        }
-      }
-      animationFrameId = requestAnimationFrame(scroll)
-    }
-
-    animationFrameId = requestAnimationFrame(scroll)
-
-    return () => {
-      cancelAnimationFrame(animationFrameId)
-    }
-  }, [isPaused, headlines])
-
-  // Handle pause with auto-resume after inactivity
   const handlePause = useCallback(() => {
     setIsPaused(true)
-
-    // Clear any existing timeout
     if (pauseTimeoutRef.current) {
       clearTimeout(pauseTimeoutRef.current)
     }
-
-    // Auto-resume after 3 seconds of inactivity
     pauseTimeoutRef.current = setTimeout(() => {
       setIsPaused(false)
     }, 3000)
   }, [])
 
   const handleResume = useCallback(() => {
-    // Clear the auto-resume timeout when user explicitly leaves
     if (pauseTimeoutRef.current) {
       clearTimeout(pauseTimeoutRef.current)
     }
     setIsPaused(false)
   }, [])
 
-  // Cleanup timeout on unmount
   useEffect(() => {
     return () => {
       if (pauseTimeoutRef.current) {
@@ -223,7 +175,7 @@ export function SuggestionBanner({ onTryClaim, className }: SuggestionBannerProp
         </div>
         <div className="flex gap-3 animate-pulse">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="shrink-0 h-[140px] w-[300px] lg:w-[360px] xl:w-[400px] bg-muted rounded-lg" />
+            <div key={i} className="shrink-0 h-[140px] w-[300px] bg-muted rounded-lg" />
           ))}
         </div>
       </div>
@@ -234,38 +186,35 @@ export function SuggestionBanner({ onTryClaim, className }: SuggestionBannerProp
     return null
   }
 
-  // Triple the headlines to ensure smooth infinite scroll
-  // This gives us enough buffer so the reset is never visible
-  const tripleHeadlines = [...headlines, ...headlines, ...headlines]
+  // Double the headlines for seamless loop
+  const doubleHeadlines = [...headlines, ...headlines]
+
+  // Calculate animation duration: 3.5 seconds per card
+  const singleSetWidth = headlines.length * (CARD_WIDTH + GAP)
+  const animationDuration = headlines.length * 3.5
 
   return (
     <div
       className={cn("w-full overflow-hidden", className)}
       onMouseEnter={handlePause}
       onMouseLeave={handleResume}
+      onTouchStart={handlePause}
     >
       <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2">
         <TrendingUp className="w-3 h-3" />
         <span>Trending News</span>
       </div>
 
+      {/* CSS-animated carousel track */}
       <div
-        ref={scrollRef}
-        className="flex gap-3 overflow-x-auto scrollbar-hide touch-pan-x"
-        style={{ scrollBehavior: 'auto' }}
-        onTouchStart={handlePause}
-        onTouchEnd={() => {
-          // Keep paused briefly after touch to allow manual scrolling
-          if (pauseTimeoutRef.current) {
-            clearTimeout(pauseTimeoutRef.current)
-          }
-          pauseTimeoutRef.current = setTimeout(() => {
-            setIsPaused(false)
-          }, 3000)
+        className="flex gap-3"
+        style={{
+          animation: `carousel-scroll ${animationDuration}s linear infinite`,
+          animationPlayState: isPaused ? 'paused' : 'running',
+          width: 'fit-content',
         }}
-        onScroll={handlePause}
       >
-        {tripleHeadlines.map((headline, index) => {
+        {doubleHeadlines.map((headline, index) => {
           const categoryInfo = headline.cached
             ? getDecompositionLabel(headline.cached)
             : null
@@ -275,8 +224,8 @@ export function SuggestionBanner({ onTryClaim, className }: SuggestionBannerProp
               key={`${headline.title}-${index}`}
               onClick={() => onTryClaim(headline.title, headline.cached)}
               className={cn(
-                "shrink-0 text-left px-5 py-4 rounded-lg border transition-colors",
-                "hover:shadow-md hover:border-primary/30",
+                "shrink-0 text-left px-5 py-4 rounded-lg border transition-all duration-200",
+                "hover:shadow-md hover:border-primary/30 hover:scale-[1.02]",
                 "bg-background/80 backdrop-blur-sm",
                 "w-[300px] min-h-[140px] flex flex-col"
               )}
@@ -302,6 +251,18 @@ export function SuggestionBanner({ onTryClaim, className }: SuggestionBannerProp
           )
         })}
       </div>
+
+      {/* Keyframe animation injected via style tag */}
+      <style jsx>{`
+        @keyframes carousel-scroll {
+          0% {
+            transform: translateX(0);
+          }
+          100% {
+            transform: translateX(-${singleSetWidth}px);
+          }
+        }
+      `}</style>
     </div>
   )
 }
