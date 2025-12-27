@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect } from "react"
 import { TrendingUp, CheckCircle2, XCircle, AlertCircle } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
@@ -41,7 +41,6 @@ export function SuggestionBanner({ onTryClaim, className }: SuggestionBannerProp
   const [headlines, setHeadlines] = useState<TrendingHeadline[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isPaused, setIsPaused] = useState(false)
-  const scrollRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     async function fetchTrending() {
@@ -61,34 +60,6 @@ export function SuggestionBanner({ onTryClaim, className }: SuggestionBannerProp
 
     fetchTrending()
   }, [])
-
-  // Auto-scroll effect
-  useEffect(() => {
-    if (isPaused || headlines.length === 0 || !scrollRef.current) return
-
-    const scrollContainer = scrollRef.current
-    let animationFrameId: number
-    let scrollSpeed = 0.5 // pixels per frame
-
-    const scroll = () => {
-      if (scrollContainer && !isPaused) {
-        scrollContainer.scrollLeft += scrollSpeed
-
-        // Reset to beginning when we've scrolled through half (the duplicated content)
-        const halfWidth = scrollContainer.scrollWidth / 2
-        if (scrollContainer.scrollLeft >= halfWidth) {
-          scrollContainer.scrollLeft = 0
-        }
-      }
-      animationFrameId = requestAnimationFrame(scroll)
-    }
-
-    animationFrameId = requestAnimationFrame(scroll)
-
-    return () => {
-      cancelAnimationFrame(animationFrameId)
-    }
-  }, [isPaused, headlines])
 
   if (isLoading) {
     return (
@@ -118,6 +89,8 @@ export function SuggestionBanner({ onTryClaim, className }: SuggestionBannerProp
       className={cn("w-full overflow-hidden", className)}
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
+      onTouchStart={() => setIsPaused(true)}
+      onTouchEnd={() => setIsPaused(false)}
     >
       <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2">
         <TrendingUp className="w-3 h-3" />
@@ -125,9 +98,13 @@ export function SuggestionBanner({ onTryClaim, className }: SuggestionBannerProp
       </div>
 
       <div
-        ref={scrollRef}
-        className="flex gap-3 overflow-x-hidden"
-        style={{ scrollBehavior: "auto" }}
+        className={cn(
+          "flex gap-3 animate-scroll",
+          isPaused && "animation-paused"
+        )}
+        style={{
+          animationDuration: `${headlines.length * 8}s`,
+        }}
       >
         {duplicatedHeadlines.map((headline, index) => {
           const categoryInfo = headline.cached
