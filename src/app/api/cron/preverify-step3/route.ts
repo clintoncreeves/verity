@@ -14,7 +14,7 @@ import {
 import { verify } from '@/lib/services/verification-orchestrator';
 
 export const runtime = 'nodejs';
-export const maxDuration = 60; // 60s timeout for Pro plan
+export const maxDuration = 300; // 5 min timeout for Pro plan
 
 export async function POST(request: NextRequest) {
   const startTime = Date.now();
