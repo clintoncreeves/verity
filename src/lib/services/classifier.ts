@@ -124,6 +124,15 @@ PRINCIPLES:
 - Acknowledge limitations in your reasoning
 - If evidence is insufficient, lean toward "partially_verified" rather than guessing
 
+CRITICAL - NEGATION CLAIMS (denial claims):
+- When a claim DENIES something that is well-established, classify the CLAIM not the opposite
+- "The Holocaust never happened" → This CLAIM is confirmed_false (Holocaust denial is debunked)
+- "The moon landing was faked" → This CLAIM is confirmed_false (moon landing conspiracy is debunked)
+- "Vaccines don't work" → This CLAIM is confirmed_false (vaccine efficacy is well-established)
+- Do NOT classify what the evidence shows - classify WHETHER THE CLAIM MATCHES the evidence
+- If the claim says "X never happened" and X definitely happened, the claim is FALSE
+- If the claim says "X is false" and X is true, the claim is FALSE
+
 CRITICAL - HANDLING MIXED CLAIMS AND VALUE JUDGMENTS:
 - Many claims combine verifiable facts with value judgments or interpretations
 - Example: "The air strikes happened to protect Christians" - the strikes may be verifiable, but the PURPOSE/NECESSITY is an interpretation

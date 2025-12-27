@@ -38,6 +38,7 @@
   ],
   "exclude": [
     "node_modules",
-    "figma-make-src"
+    "figma-make-src",
+    "scripts"
   ]
 }

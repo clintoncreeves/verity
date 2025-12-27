@@ -80,6 +80,14 @@ CRITICAL - INTENT AND MOTIVATION CLAIMS:
 - Example: "The goblins share visual characteristics with antisemitic caricatures" = verifiable_fact (observable)
 - Example: "JK Rowling based the goblins on Jewish stereotypes" = value_judgment (claims intent)
 
+CRITICAL - PERSONAL/UNVERIFIABLE CLAIMS:
+- Claims about someone's personal wishes, desires, beliefs, or feelings are NOT verifiable
+- "My grandmother's last wish is X" → value_judgment (we cannot verify personal wishes)
+- "I believe X" → value_judgment (personal belief)
+- "They want X" → value_judgment (cannot verify internal desires)
+- These claims about personal states should have verifiabilityScore 0.0
+- The KEY QUESTION: Can an independent observer verify this? If it requires access to someone's mind, it's unverifiable.
+
 CRITICAL - FACTUAL CLAIMS ABOUT EVENTS (NOT value judgments):
 - Claims that something DID or DID NOT happen are verifiable_fact, even if controversial
 - Claims about fraud, theft, manipulation, or wrongdoing ARE verifiable - they can be investigated and proven true or false
