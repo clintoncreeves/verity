@@ -22,8 +22,8 @@ async function searchAndSummarizeArticle(
     console.log(`[Verity] Searching for article: "${headline.slice(0, 50)}..." from ${source}`);
 
     const response = await anthropic.messages.create({
-      model: 'claude-haiku-4-5-20241022',
-      max_tokens: 800,
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 1024,
       tools: [
         {
           type: 'web_search_20250305',
@@ -50,11 +50,15 @@ If you cannot find the article, say "Article not found" and nothing else.`,
       ],
     });
 
+    console.log(`[Verity] Response stop_reason: ${response.stop_reason}, content blocks: ${response.content.length}`);
+
     // Extract text content from response (may include tool use blocks)
     let excerpt = '';
     for (const block of response.content) {
       if (block.type === 'text') {
         excerpt += block.text;
+      } else {
+        console.log(`[Verity] Response block type: ${block.type}`);
       }
     }
 
@@ -70,6 +74,10 @@ If you cannot find the article, say "Article not found" and nothing else.`,
     return excerpt.slice(0, MAX_EXCERPT_LENGTH);
   } catch (error) {
     console.error('[Verity] Web search failed:', error);
+    // Log more details about the error
+    if (error instanceof Error) {
+      console.error('[Verity] Error details:', error.message);
+    }
     return null;
   }
 }
