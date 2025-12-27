@@ -7,6 +7,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { rateLimit } from '@/lib/utils/rate-limiter';
+import { DailyQuotaExceededError } from '@/lib/utils/daily-quota';
 import { VerificationRequestSchema, createErrorResponse } from '@/lib/schemas';
 import { verify } from '@/lib/services/verification-orchestrator';
 import { getCorsHeaders, getClientInfo, auditLog } from '@/lib/utils/api-helpers';
@@ -88,6 +89,30 @@ export async function POST(request: NextRequest) {
     );
   } catch (error) {
     const durationMs = Date.now() - startTime;
+
+    // Handle daily quota exceeded
+    if (error instanceof DailyQuotaExceededError) {
+      auditLog({
+        event: 'quota_exceeded',
+        ip,
+        userAgent,
+        endpoint: '/api/verify',
+        error: `Daily quota exceeded. Resets at ${error.resetsAt.toISOString()}`,
+        durationMs,
+      });
+
+      return NextResponse.json(
+        createErrorResponse(
+          'Verity will be back tomorrow! Daily search limit reached.',
+          'DAILY_QUOTA_EXCEEDED',
+          { resetsAt: error.resetsAt.toISOString() }
+        ),
+        {
+          status: 503,
+          headers,
+        }
+      );
+    }
 
     // Handle Zod validation errors
     if (error instanceof z.ZodError) {

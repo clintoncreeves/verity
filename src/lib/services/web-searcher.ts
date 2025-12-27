@@ -4,6 +4,8 @@
  */
 
 import { fetchWithTimeout } from '@/lib/utils/api-helpers';
+import { checkDailyQuota, DailyQuotaExceededError } from '@/lib/utils/daily-quota';
+import { DAILY_QUOTA_CONFIG } from '@/lib/config/constants';
 
 export interface SearchResult {
   title: string;
@@ -33,6 +35,16 @@ export async function searchWeb(
 
   if (!apiKey || !searchEngineId) {
     throw new Error('Google Search API is not configured. Please add GOOGLE_CUSTOM_SEARCH_API_KEY and GOOGLE_CUSTOM_SEARCH_CX to your environment variables.');
+  }
+
+  // Check daily quota before making request
+  const quota = checkDailyQuota('google-search', DAILY_QUOTA_CONFIG.GOOGLE_SEARCH_LIMIT);
+  if (!quota.success) {
+    console.log('[Verity] Daily Google Search quota exceeded. Resets at:', quota.resetsAt);
+    throw new DailyQuotaExceededError(
+      'Daily search quota exceeded. Verity will be back tomorrow!',
+      quota.resetsAt
+    );
   }
 
   try {

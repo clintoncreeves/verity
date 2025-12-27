@@ -25,10 +25,12 @@ function mapCategory(backendCategory: string): VerificationCategory {
 export default function Home() {
   const [isVerifying, setIsVerifying] = useState(false)
   const [result, setResult] = useState<VerificationResult | null>(null)
+  const [quotaExceeded, setQuotaExceeded] = useState(false)
 
   const handleVerify = async (input: { type: "text" | "image" | "url"; content: string }) => {
     setIsVerifying(true)
     setResult(null)
+    setQuotaExceeded(false)
 
     try {
       const response = await fetch("/api/verify", {
@@ -45,6 +47,11 @@ export default function Home() {
       const data = await response.json()
 
       if (!response.ok) {
+        // Check for daily quota exceeded
+        if (data.error?.code === "DAILY_QUOTA_EXCEEDED") {
+          setQuotaExceeded(true)
+          return
+        }
         throw new Error(data.error?.message || "Verification failed")
       }
 
@@ -113,11 +120,23 @@ export default function Home() {
         <div className="space-y-6 mt-4">
           <InputSection onVerify={handleVerify} isLoading={isVerifying} />
 
-          {result && (
+          {quotaExceeded && (
+            <div className="rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950 p-6 text-center">
+              <div className="text-4xl mb-3">🌙</div>
+              <h3 className="text-lg font-semibold text-amber-800 dark:text-amber-200 mb-2">
+                Verity will be back tomorrow!
+              </h3>
+              <p className="text-sm text-amber-700 dark:text-amber-300">
+                We&apos;ve reached our daily search limit. The quota resets at midnight UTC.
+              </p>
+            </div>
+          )}
+
+          {result && !quotaExceeded && (
             <ResultCard result={result} />
           )}
 
-          {!result && (
+          {!result && !quotaExceeded && (
             <p className="text-center text-sm text-muted-foreground py-4">
               Enter a claim or statement to begin verification
             </p>

@@ -43,6 +43,11 @@ export const TIMEOUT_CONFIG = {
   OVERALL_VERIFICATION_MS: 30000,
 } as const;
 
+// Daily quota limits (free tier)
+export const DAILY_QUOTA_CONFIG = {
+  GOOGLE_SEARCH_LIMIT: 100, // Free tier limit
+} as const;
+
 // Short text handling
 export const TEXT_CONFIG = {
   MIN_LENGTH_FOR_EXTRACTION: 20,  // Below this, treat as single claim
