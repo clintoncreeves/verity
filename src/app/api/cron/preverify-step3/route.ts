@@ -122,11 +122,23 @@ export async function POST(request: NextRequest) {
       durationMs,
     });
   } catch (error) {
-    console.error('[Verity] Step 3 failed:', error);
+    const durationMs = Date.now() - startTime;
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorStack = error instanceof Error ? error.stack : undefined;
+
+    console.error('[Verity] Step 3 failed:', {
+      error: errorMessage,
+      stack: errorStack,
+      durationMs,
+    });
+
     return NextResponse.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: errorMessage,
+        durationMs,
+        // Include truncated stack in dev for debugging
+        debug: process.env.NODE_ENV !== 'production' ? errorStack?.slice(0, 500) : undefined,
       },
       { status: 500 }
     );

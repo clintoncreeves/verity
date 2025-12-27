@@ -90,7 +90,13 @@ while true; do
   STEP3_STATUS=$(echo "$STEP3_RESPONSE" | jq -r '.status // empty')
 
   if [ "$STEP3_SUCCESS" != "true" ]; then
-    echo "❌ Step 3 failed: $(echo "$STEP3_RESPONSE" | jq -r '.error')"
+    ERROR=$(echo "$STEP3_RESPONSE" | jq -r '.error // "unknown"')
+    DURATION=$(echo "$STEP3_RESPONSE" | jq -r '.durationMs // "?"')
+    echo "❌ Step 3 failed after ${DURATION}ms: $ERROR"
+    # Show raw response if it's not JSON (e.g., timeout message)
+    if [ "$ERROR" = "unknown" ] || [ "$ERROR" = "null" ]; then
+      echo "Raw response: $STEP3_RESPONSE"
+    fi
     break
   fi
 
