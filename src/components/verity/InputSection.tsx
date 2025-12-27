@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Textarea } from "@/components/ui/textarea"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
@@ -10,10 +10,24 @@ import { cn } from "@/lib/utils"
 interface InputSectionProps {
   onVerify?: (input: { type: "text" | "image" | "url"; content: string }) => void
   isLoading?: boolean
+  initialValue?: string
+  onValueChange?: (value: string) => void
 }
 
-export function InputSection({ onVerify, isLoading = false }: InputSectionProps) {
-  const [textInput, setTextInput] = useState("")
+export function InputSection({ onVerify, isLoading = false, initialValue, onValueChange }: InputSectionProps) {
+  const [textInput, setTextInput] = useState(initialValue || "")
+
+  // Sync with external value changes
+  useEffect(() => {
+    if (initialValue !== undefined) {
+      setTextInput(initialValue)
+    }
+  }, [initialValue])
+
+  const handleChange = (value: string) => {
+    setTextInput(value)
+    onValueChange?.(value)
+  }
 
   const charCount = textInput.length
   const charLimit = 2000
@@ -39,7 +53,7 @@ export function InputSection({ onVerify, isLoading = false }: InputSectionProps)
           <Textarea
             placeholder="Enter a claim, statement, or piece of information to verify..."
             value={textInput}
-            onChange={(e) => setTextInput(e.target.value)}
+            onChange={(e) => handleChange(e.target.value)}
             onKeyDown={handleKeyDown}
             className="min-h-[120px] resize-none font-sans"
             maxLength={charLimit + 100}

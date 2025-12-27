@@ -4,6 +4,7 @@ import { useState } from "react"
 import { VerityHeader } from "@/components/verity/VerityHeader"
 import { InputSection } from "@/components/verity/InputSection"
 import { ResultCard, type VerificationResult } from "@/components/verity/ResultCard"
+import { SuggestionBanner } from "@/components/verity/SuggestionBanner"
 import type { VerificationCategory } from "@/lib/category-config"
 
 // Map backend categories to frontend categories
@@ -26,6 +27,11 @@ export default function Home() {
   const [isVerifying, setIsVerifying] = useState(false)
   const [result, setResult] = useState<VerificationResult | null>(null)
   const [quotaExceeded, setQuotaExceeded] = useState(false)
+  const [inputValue, setInputValue] = useState("")
+
+  const handleTryClaim = (claim: string) => {
+    setInputValue(claim)
+  }
 
   const handleVerify = async (input: { type: "text" | "image" | "url"; content: string }) => {
     setIsVerifying(true)
@@ -118,7 +124,17 @@ export default function Home() {
         <VerityHeader />
 
         <div className="space-y-6 mt-4">
-          <InputSection onVerify={handleVerify} isLoading={isVerifying} />
+          <InputSection
+            onVerify={handleVerify}
+            isLoading={isVerifying}
+            initialValue={inputValue}
+            onValueChange={setInputValue}
+          />
+
+          {/* Trending headlines suggestion */}
+          {!result && !quotaExceeded && !isVerifying && (
+            <SuggestionBanner onTryClaim={handleTryClaim} />
+          )}
 
           {quotaExceeded && (
             <div className="rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950 p-6 text-center">
