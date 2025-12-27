@@ -26,8 +26,11 @@ const redis = new Redis({
 // Cache key prefix
 const CACHE_PREFIX = 'verity:trending:';
 
-// Cache duration: 24 hours (daily refresh)
-const CACHE_TTL_SECONDS = 24 * 60 * 60;
+// Cache duration: 48 hours (2 days retention)
+const CACHE_TTL_SECONDS = 48 * 60 * 60;
+
+// Maximum age for cleanup: 48 hours in milliseconds
+const MAX_CACHE_AGE_MS = 48 * 60 * 60 * 1000;
 
 /**
  * Generate cache key from headline text
@@ -135,5 +138,52 @@ export async function getAllCachedHeadlines(): Promise<CachedVerification[]> {
   } catch (error) {
     console.error('[Verity] Redis getAllCachedHeadlines error:', error);
     return [];
+  }
+}
+
+/**
+ * Clean up old cache entries (older than 2 days)
+ * Call this before writing new data to maintain 2-day retention
+ */
+export async function cleanupOldCache(): Promise<{ deleted: number; kept: number }> {
+  try {
+    const now = Date.now();
+    const cutoffTime = now - MAX_CACHE_AGE_MS;
+
+    // Scan for all keys with our prefix
+    const keys: string[] = [];
+    let cursor = '0';
+
+    do {
+      const [nextCursor, foundKeys] = await redis.scan(cursor, { match: `${CACHE_PREFIX}*`, count: 100 }) as [string, string[]];
+      cursor = nextCursor;
+      keys.push(...foundKeys);
+    } while (cursor !== '0');
+
+    if (keys.length === 0) {
+      console.log('[Verity] No cached entries to clean up');
+      return { deleted: 0, kept: 0 };
+    }
+
+    let deleted = 0;
+    let kept = 0;
+
+    // Check each entry and delete if older than 2 days
+    for (const key of keys) {
+      const cached = await redis.get<CachedVerification>(key);
+      if (cached && cached.cachedAt < cutoffTime) {
+        await redis.del(key);
+        deleted++;
+        console.log(`[Verity] Deleted old cache entry: ${cached.headline.title.slice(0, 50)}...`);
+      } else if (cached) {
+        kept++;
+      }
+    }
+
+    console.log(`[Verity] Cache cleanup complete: ${deleted} deleted, ${kept} kept`);
+    return { deleted, kept };
+  } catch (error) {
+    console.error('[Verity] Redis cleanupOldCache error:', error);
+    return { deleted: 0, kept: 0 };
   }
 }

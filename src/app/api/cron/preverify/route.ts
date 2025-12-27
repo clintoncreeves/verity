@@ -8,7 +8,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getBestHeadlines, type TrendingHeadline } from '@/lib/services/trending-news';
-import { cacheVerification, getCachedVerification } from '@/lib/services/trending-cache';
+import { cacheVerification, getCachedVerification, cleanupOldCache } from '@/lib/services/trending-cache';
 import { verify } from '@/lib/services/verification-orchestrator';
 
 // Simple auth check - require a secret token for cron jobs
@@ -25,6 +25,10 @@ export async function POST(request: NextRequest) {
   const startTime = Date.now();
 
   try {
+    // Clean up old cache entries (older than 2 days) before adding new ones
+    const cleanupResult = await cleanupOldCache();
+    console.log(`[Verity] Cache cleanup: ${cleanupResult.deleted} old entries deleted, ${cleanupResult.kept} entries kept`);
+
     // Fetch more headlines (12-15) to increase chances of diverse verdicts
     // We'll display 6, but verify more to ensure variety in cached results
     const headlines = await getBestHeadlines(15);
@@ -111,6 +115,7 @@ export async function POST(request: NextRequest) {
         cached,
         failed,
         durationMs,
+        cleanup: cleanupResult,
       },
       results,
     });

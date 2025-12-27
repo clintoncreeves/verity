@@ -7,7 +7,7 @@
 import { anthropicClient } from './anthropic-client';
 import type { TrendingHeadline } from './trending-news';
 
-export type VerdictPrediction = 'verified' | 'mixed' | 'false' | 'opinion';
+export type VerdictPrediction = 'verified' | 'mixed' | 'false' | 'opinion' | 'unsuitable';
 
 export interface AnalyzedHeadline extends TrendingHeadline {
   prediction: VerdictPrediction;
@@ -15,6 +15,8 @@ export interface AnalyzedHeadline extends TrendingHeadline {
 }
 
 const BATCH_ANALYSIS_PROMPT = `You are Verity's headline analyzer. Your job is to predict what verdict bucket each headline will likely fall into based on its claim structure.
+
+IMPORTANT: Only select headlines where Verity adds clear value by verifying factual claims.
 
 VERDICT BUCKETS:
 
@@ -34,18 +36,23 @@ VERDICT BUCKETS:
    - Exaggerated or misleading framing of real events
    - Example: "The election was stolen" (disputed factual claim)
 
-4. "opinion" - Headlines that are primarily value judgments or editorial
-   - "Best", "worst", subjective assessments
-   - Questions about necessity, fairness, morality
-   - Commentary and analysis pieces
-   - Example: "Why X is the best/worst decision"
+4. "opinion" - Headlines with value judgments BUT containing verifiable sub-claims
+   - Editorial pieces that make factual assertions we can check
+   - Opinion framing around checkable facts
+   - Example: "The new policy is a disaster" (opinion, but policy details verifiable)
+
+5. "unsuitable" - Headlines with NO verifiable claims - EXCLUDE THESE
+   - Listicles: "Best of", "Top 10", "Most exciting X of 2025"
+   - Pure entertainment/lifestyle: recipes, gift guides, rankings
+   - Vague meta-commentary with no specific claims
+   - Questions without embedded claims: "What will happen next?"
+   - Example: "The most exciting exoplanet discoveries of 2025" (subjective list)
+   - Example: "10 best holiday gifts for 2025" (no factual claims)
 
 ANALYSIS APPROACH:
-Apply Verity's core principle: separate fact from framing.
-- What parts are verifiable facts? → likely "verified"
-- What parts are predictions/hedged? → likely "mixed"
-- What parts are value judgments? → likely "opinion"
-- What claims contradict known evidence? → likely "false"
+Apply Verity's core principle: Does this headline contain a specific factual claim we can verify?
+- If yes → "verified", "mixed", "false", or "opinion"
+- If no verifiable claim exists → "unsuitable"
 
 Return JSON array with your predictions. Be concise in reasoning (under 15 words).`;
 
@@ -69,7 +76,7 @@ ${headlineList}
 
 Return a JSON array:
 [
-  {"index": 1, "prediction": "verified"|"mixed"|"false"|"opinion", "reasoning": "brief reason"},
+  {"index": 1, "prediction": "verified"|"mixed"|"false"|"opinion"|"unsuitable", "reasoning": "brief reason"},
   ...
 ]`;
 
@@ -87,7 +94,7 @@ Return a JSON array:
 
     return headlines.map((headline, i) => {
       const pred = predictionMap.get(i + 1);
-      const validPredictions: VerdictPrediction[] = ['verified', 'mixed', 'false', 'opinion'];
+      const validPredictions: VerdictPrediction[] = ['verified', 'mixed', 'false', 'opinion', 'unsuitable'];
 
       return {
         ...headline,
@@ -111,41 +118,51 @@ Return a JSON array:
 /**
  * Select headlines with diverse predicted verdicts
  * Prioritizes showing Verity's range of capabilities
+ * Excludes "unsuitable" headlines that have no verifiable claims
  */
 export function selectDiverseByPrediction(
   analyzed: AnalyzedHeadline[],
   targetCount: number = 6
 ): AnalyzedHeadline[] {
-  const buckets: Record<VerdictPrediction, AnalyzedHeadline[]> = {
+  // Filter out unsuitable headlines - they have no verifiable claims
+  const suitable = analyzed.filter(h => h.prediction !== 'unsuitable');
+
+  console.log(`[Verity] Headline analysis: ${analyzed.length} total, ${suitable.length} suitable, ${analyzed.length - suitable.length} unsuitable`);
+
+  const buckets: Record<Exclude<VerdictPrediction, 'unsuitable'>, AnalyzedHeadline[]> = {
     verified: [],
     mixed: [],
     false: [],
     opinion: [],
   };
 
-  for (const h of analyzed) {
-    buckets[h.prediction].push(h);
+  for (const h of suitable) {
+    if (h.prediction !== 'unsuitable') {
+      buckets[h.prediction].push(h);
+    }
   }
 
   const selected: AnalyzedHeadline[] = [];
   const usedSources = new Set<string>();
 
-  // Target distribution: 2 mixed, 1-2 opinion, 1 false (if available), rest verified
+  // Target distribution: 2-3 verified, 2 mixed, 1 opinion, 1 false (if available)
+  // Prioritize verified and mixed - these demonstrate Verity's core value
+  const targetVerified = 3;
   const targetMixed = 2;
-  const targetOpinion = 2;
+  const targetOpinion = 1;
   const targetFalse = 1;
 
-  // First: mixed/nuanced (most interesting for demo)
-  for (const h of buckets.mixed) {
-    if (selected.length >= targetMixed) break;
+  // First: verified facts (core value prop)
+  for (const h of buckets.verified) {
+    if (selected.filter(s => s.prediction === 'verified').length >= targetVerified) break;
     if (usedSources.has(h.source)) continue;
     selected.push(h);
     usedSources.add(h.source);
   }
 
-  // Second: opinion (shows value judgment detection)
-  for (const h of buckets.opinion) {
-    if (selected.filter(s => s.prediction === 'opinion').length >= targetOpinion) break;
+  // Second: mixed/nuanced (shows sophisticated analysis)
+  for (const h of buckets.mixed) {
+    if (selected.filter(s => s.prediction === 'mixed').length >= targetMixed) break;
     if (usedSources.has(h.source)) continue;
     selected.push(h);
     usedSources.add(h.source);
@@ -159,16 +176,16 @@ export function selectDiverseByPrediction(
     usedSources.add(h.source);
   }
 
-  // Fill with verified
-  for (const h of buckets.verified) {
-    if (selected.length >= targetCount) break;
+  // Fourth: opinion with verifiable sub-claims
+  for (const h of buckets.opinion) {
+    if (selected.filter(s => s.prediction === 'opinion').length >= targetOpinion) break;
     if (usedSources.has(h.source)) continue;
     selected.push(h);
     usedSources.add(h.source);
   }
 
-  // Fill any remaining slots
-  for (const h of analyzed) {
+  // Fill any remaining slots with suitable headlines
+  for (const h of suitable) {
     if (selected.length >= targetCount) break;
     if (!selected.includes(h)) {
       selected.push(h);
