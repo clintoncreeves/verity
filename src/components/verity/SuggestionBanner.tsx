@@ -1,7 +1,7 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { TrendingUp, ChevronLeft, ChevronRight, CheckCircle2, XCircle, AlertCircle } from "lucide-react"
+import { useState, useEffect, useRef } from "react"
+import { TrendingUp, CheckCircle2, XCircle, AlertCircle } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
 
@@ -26,21 +26,22 @@ interface SuggestionBannerProps {
 }
 
 // Map backend categories to display info
-const categoryDisplay: Record<string, { label: string; color: string; icon: typeof CheckCircle2 }> = {
-  verified_fact: { label: "Verified", color: "text-teal-600 dark:text-teal-400", icon: CheckCircle2 },
-  expert_consensus: { label: "Likely True", color: "text-teal-600 dark:text-teal-400", icon: CheckCircle2 },
-  partially_verified: { label: "Partially Verified", color: "text-amber-600 dark:text-amber-400", icon: AlertCircle },
-  disputed: { label: "Mixed", color: "text-amber-600 dark:text-amber-400", icon: AlertCircle },
-  likely_false: { label: "Likely False", color: "text-rose-600 dark:text-rose-400", icon: XCircle },
-  confirmed_false: { label: "False", color: "text-rose-600 dark:text-rose-400", icon: XCircle },
-  opinion: { label: "Opinion", color: "text-slate-500", icon: AlertCircle },
-  speculation: { label: "Speculation", color: "text-slate-500", icon: AlertCircle },
+const categoryDisplay: Record<string, { label: string; color: string; borderColor: string; icon: typeof CheckCircle2 }> = {
+  verified_fact: { label: "Verified", color: "text-teal-600 dark:text-teal-400", borderColor: "border-teal-300 dark:border-teal-600", icon: CheckCircle2 },
+  expert_consensus: { label: "Likely True", color: "text-teal-600 dark:text-teal-400", borderColor: "border-teal-300 dark:border-teal-600", icon: CheckCircle2 },
+  partially_verified: { label: "Mixed", color: "text-amber-600 dark:text-amber-400", borderColor: "border-amber-300 dark:border-amber-600", icon: AlertCircle },
+  disputed: { label: "Disputed", color: "text-amber-600 dark:text-amber-400", borderColor: "border-amber-300 dark:border-amber-600", icon: AlertCircle },
+  likely_false: { label: "Likely False", color: "text-rose-600 dark:text-rose-400", borderColor: "border-rose-300 dark:border-rose-600", icon: XCircle },
+  confirmed_false: { label: "False", color: "text-rose-600 dark:text-rose-400", borderColor: "border-rose-300 dark:border-rose-600", icon: XCircle },
+  opinion: { label: "Opinion", color: "text-slate-500", borderColor: "border-slate-300", icon: AlertCircle },
+  speculation: { label: "Speculation", color: "text-slate-500", borderColor: "border-slate-300", icon: AlertCircle },
 }
 
 export function SuggestionBanner({ onTryClaim, className }: SuggestionBannerProps) {
   const [headlines, setHeadlines] = useState<TrendingHeadline[]>([])
-  const [currentIndex, setCurrentIndex] = useState(0)
   const [isLoading, setIsLoading] = useState(true)
+  const [isPaused, setIsPaused] = useState(false)
+  const scrollRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     async function fetchTrending() {
@@ -61,28 +62,45 @@ export function SuggestionBanner({ onTryClaim, className }: SuggestionBannerProp
     fetchTrending()
   }, [])
 
-  const goToPrevious = (e: React.MouseEvent) => {
-    e.stopPropagation()
-    setCurrentIndex((prev) => (prev === 0 ? headlines.length - 1 : prev - 1))
-  }
+  // Auto-scroll effect
+  useEffect(() => {
+    if (isPaused || headlines.length === 0 || !scrollRef.current) return
 
-  const goToNext = (e: React.MouseEvent) => {
-    e.stopPropagation()
-    setCurrentIndex((prev) => (prev === headlines.length - 1 ? 0 : prev + 1))
-  }
+    const scrollContainer = scrollRef.current
+    let animationFrameId: number
+    let scrollSpeed = 0.5 // pixels per frame
+
+    const scroll = () => {
+      if (scrollContainer && !isPaused) {
+        scrollContainer.scrollLeft += scrollSpeed
+
+        // Reset to beginning when we've scrolled through half (the duplicated content)
+        const halfWidth = scrollContainer.scrollWidth / 2
+        if (scrollContainer.scrollLeft >= halfWidth) {
+          scrollContainer.scrollLeft = 0
+        }
+      }
+      animationFrameId = requestAnimationFrame(scroll)
+    }
+
+    animationFrameId = requestAnimationFrame(scroll)
+
+    return () => {
+      cancelAnimationFrame(animationFrameId)
+    }
+  }, [isPaused, headlines])
 
   if (isLoading) {
     return (
-      <div className={cn(
-        "w-full rounded-lg border border-muted bg-muted/30 p-3 animate-pulse",
-        className
-      )}>
-        <div className="flex items-center gap-3">
-          <div className="w-4 h-4 bg-muted rounded" />
-          <div className="flex-1 space-y-2">
-            <div className="h-3 bg-muted rounded w-24" />
-            <div className="h-4 bg-muted rounded w-3/4" />
-          </div>
+      <div className={cn("w-full overflow-hidden", className)}>
+        <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2">
+          <TrendingUp className="w-3 h-3" />
+          <span>Loading trending topics...</span>
+        </div>
+        <div className="flex gap-3 animate-pulse">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="shrink-0 h-16 w-64 bg-muted rounded-lg" />
+          ))}
         </div>
       </div>
     )
@@ -92,79 +110,61 @@ export function SuggestionBanner({ onTryClaim, className }: SuggestionBannerProp
     return null
   }
 
-  const currentHeadline = headlines[currentIndex]
-  const categoryInfo = currentHeadline.cached
-    ? categoryDisplay[currentHeadline.cached.category] || categoryDisplay.opinion
-    : null
+  // Duplicate headlines for seamless infinite scroll
+  const duplicatedHeadlines = [...headlines, ...headlines]
 
   return (
-    <div className={cn(
-      "w-full rounded-lg border border-teal-200 dark:border-teal-800",
-      "bg-gradient-to-r from-teal-50 to-cyan-50 dark:from-teal-950/50 dark:to-cyan-950/50",
-      className
-    )}>
-      <div className="flex items-center">
-        {/* Previous button */}
-        {headlines.length > 1 && (
-          <button
-            onClick={goToPrevious}
-            className="p-2 hover:bg-teal-100/50 dark:hover:bg-teal-900/30 transition-colors rounded-l-lg"
-            aria-label="Previous headline"
-          >
-            <ChevronLeft className="w-4 h-4 text-teal-500" />
-          </button>
-        )}
+    <div
+      className={cn("w-full overflow-hidden", className)}
+      onMouseEnter={() => setIsPaused(true)}
+      onMouseLeave={() => setIsPaused(false)}
+    >
+      <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2">
+        <TrendingUp className="w-3 h-3" />
+        <span>Trending topics</span>
+      </div>
 
-        {/* Main content - clickable */}
-        <button
-          onClick={() => onTryClaim(currentHeadline.title, currentHeadline.cached)}
-          className="flex-1 text-left p-3 hover:bg-teal-100/50 dark:hover:bg-teal-900/30 transition-colors"
-        >
-          <div className="flex items-start gap-3">
-            <div className="shrink-0 mt-0.5">
-              <TrendingUp className="w-4 h-4 text-teal-500" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 mb-1 flex-wrap">
-                <span className="text-xs font-medium text-teal-600 dark:text-teal-400">
-                  Trending
+      <div
+        ref={scrollRef}
+        className="flex gap-3 overflow-x-hidden"
+        style={{ scrollBehavior: "auto" }}
+      >
+        {duplicatedHeadlines.map((headline, index) => {
+          const categoryInfo = headline.cached
+            ? categoryDisplay[headline.cached.category] || categoryDisplay.opinion
+            : null
+
+          return (
+            <button
+              key={`${headline.title}-${index}`}
+              onClick={() => onTryClaim(headline.title, headline.cached)}
+              className={cn(
+                "shrink-0 text-left px-4 py-3 rounded-lg border transition-all",
+                "hover:scale-[1.02] hover:shadow-md",
+                "bg-background/80 backdrop-blur-sm",
+                "max-w-[280px] min-w-[240px]"
+              )}
+            >
+              <div className="flex items-center gap-2 mb-1.5">
+                <span className="text-[10px] text-muted-foreground truncate">
+                  {headline.source}
                 </span>
-                <span className="text-xs text-muted-foreground">
-                  {currentHeadline.source}
-                </span>
-                {headlines.length > 1 && (
-                  <span className="text-xs text-muted-foreground/60">
-                    {currentIndex + 1}/{headlines.length}
-                  </span>
-                )}
-                {/* Show pre-verified badge if cached */}
                 {categoryInfo && (
-                  <Badge variant="outline" className={cn("text-[10px] gap-1", categoryInfo.color)}>
-                    <categoryInfo.icon className="w-3 h-3" />
+                  <Badge
+                    variant="outline"
+                    className={cn("text-[9px] px-1.5 py-0 h-4 gap-0.5", categoryInfo.color, categoryInfo.borderColor)}
+                  >
+                    <categoryInfo.icon className="w-2.5 h-2.5" />
                     {categoryInfo.label}
                   </Badge>
                 )}
               </div>
-              <p className="text-sm text-foreground/90 line-clamp-2">
-                &ldquo;{currentHeadline.title}&rdquo;
+              <p className="text-xs font-medium leading-snug line-clamp-2">
+                {headline.title}
               </p>
-              <p className="text-xs text-teal-500 mt-1">
-                {currentHeadline.cached ? "Click to see full analysis →" : "Click to verify →"}
-              </p>
-            </div>
-          </div>
-        </button>
-
-        {/* Next button */}
-        {headlines.length > 1 && (
-          <button
-            onClick={goToNext}
-            className="p-2 hover:bg-teal-100/50 dark:hover:bg-teal-900/30 transition-colors rounded-r-lg"
-            aria-label="Next headline"
-          >
-            <ChevronRight className="w-4 h-4 text-teal-500" />
-          </button>
-        )}
+            </button>
+          )
+        })}
       </div>
     </div>
   )

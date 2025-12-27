@@ -141,17 +141,17 @@ export default function Home() {
         <VerityHeader />
 
         <div className="space-y-6 mt-4">
+          {/* Trending headlines suggestion - above input */}
+          {!result && !quotaExceeded && !isVerifying && (
+            <SuggestionBanner onTryClaim={handleTryClaim} />
+          )}
+
           <InputSection
             onVerify={handleVerify}
             isLoading={isVerifying}
             initialValue={inputValue}
             onValueChange={setInputValue}
           />
-
-          {/* Trending headlines suggestion */}
-          {!result && !quotaExceeded && !isVerifying && (
-            <SuggestionBanner onTryClaim={handleTryClaim} />
-          )}
 
           {quotaExceeded && (
             <div className="rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950 p-6 text-center">
