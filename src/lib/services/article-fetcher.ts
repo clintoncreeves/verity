@@ -14,25 +14,78 @@ const MAX_EXCERPT_LENGTH = 1500;
 const FETCH_TIMEOUT = 10000; // 10 seconds
 
 /**
+ * Decode Google News article URL from the encoded RSS link
+ * Google News URLs contain a base64-encoded payload with the actual article URL
+ */
+function decodeGoogleNewsUrl(googleUrl: string): string | null {
+  try {
+    // Extract the article ID from the URL
+    const match = googleUrl.match(/\/articles\/([^?]+)/);
+    if (!match) return null;
+
+    const articleId = match[1];
+
+    // The article ID is a base64-encoded protobuf message
+    // The URL is typically embedded in the decoded data
+    // Try to decode and extract URL
+    const decoded = Buffer.from(articleId, 'base64').toString('utf-8');
+
+    // Look for http(s):// pattern in decoded data
+    const urlMatch = decoded.match(/https?:\/\/[^\s\x00-\x1f"<>]+/);
+    if (urlMatch) {
+      // Clean up the URL - remove any trailing control characters
+      return urlMatch[0].replace(/[\x00-\x1f]/g, '').split('\x12')[0];
+    }
+
+    return null;
+  } catch (error) {
+    console.error('[Verity] Failed to decode Google News URL:', error);
+    return null;
+  }
+}
+
+/**
  * Resolve Google News redirect URL to the actual article URL
+ * First tries to decode the URL directly, then falls back to following redirects
  */
 async function resolveGoogleNewsUrl(googleUrl: string): Promise<string> {
+  // First try to decode the URL directly (faster, no network request)
+  const decodedUrl = decodeGoogleNewsUrl(googleUrl);
+  if (decodedUrl) {
+    console.log(`[Verity] Decoded Google News URL: ${decodedUrl.slice(0, 60)}...`);
+    return decodedUrl;
+  }
+
+  // Fallback: try following redirects
   try {
-    // Google News URLs redirect to the actual article
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT);
 
     const response = await fetch(googleUrl, {
-      method: 'HEAD',
+      method: 'GET',
       redirect: 'follow',
       signal: controller.signal,
       headers: {
-        'User-Agent': 'Mozilla/5.0 (compatible; Verity/1.0; +https://verity.app)',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
       },
     });
 
     clearTimeout(timeoutId);
-    return response.url;
+
+    // Check if we got redirected to a different domain
+    if (response.url && !response.url.includes('news.google.com')) {
+      return response.url;
+    }
+
+    // If still on Google News, try to extract URL from page content
+    const html = await response.text();
+    const urlFromPage = html.match(/data-n-au="([^"]+)"/)?.[1] ||
+                        html.match(/"url":"([^"]+)"/)?.[1];
+    if (urlFromPage) {
+      return urlFromPage;
+    }
+
+    return googleUrl;
   } catch (error) {
     console.error('[Verity] Failed to resolve Google News URL:', error);
     return googleUrl;
