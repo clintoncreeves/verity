@@ -99,11 +99,11 @@ export function SuggestionBanner({ onTryClaim, className }: SuggestionBannerProp
 
       <div
         className={cn(
-          "flex gap-3 animate-scroll",
-          isPaused && "animation-paused"
+          "flex gap-3 overflow-x-auto scrollbar-hide",
+          !isPaused && "animate-scroll"
         )}
         style={{
-          animationDuration: `${headlines.length * 8}s`,
+          animationDuration: `${headlines.length * 5}s`,
         }}
       >
         {duplicatedHeadlines.map((headline, index) => {
