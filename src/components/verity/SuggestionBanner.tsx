@@ -100,7 +100,7 @@ export function SuggestionBanner({ onTryClaim, className }: SuggestionBannerProp
           !isPaused && "animate-scroll"
         )}
         style={{
-          animationDuration: `${headlines.length * 5}s`,
+          animationDuration: `${headlines.length * 8}s`,
           // Width is calculated: (card width + gap) * number of headlines
           // This ensures the animation loops perfectly
           width: `calc((300px + 12px) * ${headlines.length * 2})`,
