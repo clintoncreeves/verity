@@ -195,6 +195,7 @@ interface VerificationSummaryProps {
   components: ClaimComponent[]
   decompositionSummary: DecompositionSummary
   originalClaim?: string
+  apiSummary?: string // The LLM-generated reasoning from the classifier
   className?: string
 }
 
@@ -202,10 +203,14 @@ export function VerificationSummary({
   components,
   decompositionSummary,
   originalClaim,
+  apiSummary,
   className,
 }: VerificationSummaryProps) {
   const { main, explanation } = generateSummary(components, decompositionSummary)
   const warnings = detectWarnings(components, originalClaim)
+
+  // Use the API summary if available and substantive, otherwise fall back to generated explanation
+  const displayExplanation = apiSummary && apiSummary.length > 20 ? apiSummary : explanation
 
   return (
     <div className={cn("space-y-4", className)}>
@@ -217,9 +222,9 @@ export function VerificationSummary({
         <p className="text-sm leading-relaxed">
           {main}
         </p>
-        {explanation && (
+        {displayExplanation && (
           <p className="text-sm text-muted-foreground mt-2 leading-relaxed">
-            {explanation}
+            {displayExplanation}
           </p>
         )}
       </div>

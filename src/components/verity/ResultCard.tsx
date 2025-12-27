@@ -83,6 +83,7 @@ export function ResultCard({ result, className }: ResultCardProps) {
         components={result.decomposition!.components}
         decompositionSummary={result.decomposition!.summary}
         originalClaim={result.originalClaim}
+        apiSummary={result.summary}
       />
 
       {result.sources.length > 0 && (

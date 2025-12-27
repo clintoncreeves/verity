@@ -198,10 +198,21 @@ WRITING STYLE FOR REASONING:
 - Good: "Reuters, AP, and BBC report this event occurred."
 - Bad: "...which is not provided in these excerpts" (FORBIDDEN)
 
+CRITICAL - INFORMATIVE REASONING FOR FALSE/DEBUNKED CLAIMS:
+- When classifying something as "confirmed_false" or "likely_false", your reasoning MUST explain WHY it's false
+- Don't just say "evidence contradicts this" - explain WHAT the evidence actually shows
+- For well-known false claims, state the correct facts:
+  * Flat earth: Explain that the Earth is an oblate spheroid, confirmed by satellite imagery, physics, navigation, etc.
+  * Vaccine-autism: Explain the Wakefield study was fraudulent and retracted, and numerous studies found no link
+  * Moon landing hoax: Explain we have physical evidence (reflectors on moon), photos, independent verification
+- The reasoning should help users understand the TRUTH, not just that something is false
+- Example good reasoning: "The Earth is an oblate spheroid, confirmed by satellite imagery, circumnavigation, physics of gravity, and observations from space. The flat earth claim contradicts overwhelming scientific evidence and direct observation."
+- Example bad reasoning: "Strong evidence contradicts this claim." (too vague - FORBIDDEN!)
+
 OUTPUT: Return JSON with:
 - category: one of the 8 categories above
 - confidence: 0.0-1.0 (your confidence in this classification)
-- reasoning: 1-2 concise sentences explaining your classification. Be direct and informative. For mixed claims, briefly note which parts are facts vs opinions.`;
+- reasoning: 2-3 informative sentences explaining your classification. For false claims, explain what the truth actually is. For mixed claims, note which parts are facts vs opinions.`;
 
 const CLASSIFICATION_USER_PROMPT = `Classify this claim based on the available evidence.
 
@@ -237,10 +248,15 @@ After searching, classify into one of these categories:
 
 CRITICAL: Absence of evidence is NOT evidence of falsity. If you can't find sources, use "partially_verified" with low confidence, NOT "likely_false".
 
+CRITICAL - INFORMATIVE REASONING:
+- For false/debunked claims, explain WHY it's false and what the truth is
+- Don't just say "evidence contradicts this" - explain the actual facts
+- Example: "The Earth is an oblate spheroid confirmed by satellite imagery, physics, and direct observation. This claim contradicts overwhelming scientific evidence."
+
 Return ONLY valid JSON with:
 - category: one of the 8 categories
 - confidence: 0.0-1.0
-- reasoning: 1-2 sentences explaining your classification based on what you found`;
+- reasoning: 2-3 informative sentences explaining your classification. For false claims, explain what the truth actually is.`;
 
 /**
  * Classify a claim with web search capability
