@@ -187,3 +187,36 @@ export async function cleanupOldCache(): Promise<{ deleted: number; kept: number
     return { deleted: 0, kept: 0 };
   }
 }
+
+/**
+ * Clear all cached entries (for manual reset)
+ */
+export async function clearAllCache(): Promise<{ deleted: number }> {
+  try {
+    // Scan for all keys with our prefix
+    const keys: string[] = [];
+    let cursor = '0';
+
+    do {
+      const [nextCursor, foundKeys] = await redis.scan(cursor, { match: `${CACHE_PREFIX}*`, count: 100 }) as [string, string[]];
+      cursor = nextCursor;
+      keys.push(...foundKeys);
+    } while (cursor !== '0');
+
+    if (keys.length === 0) {
+      console.log('[Verity] No cached entries to clear');
+      return { deleted: 0 };
+    }
+
+    // Delete all keys
+    for (const key of keys) {
+      await redis.del(key);
+    }
+
+    console.log(`[Verity] Cleared all ${keys.length} cache entries`);
+    return { deleted: keys.length };
+  } catch (error) {
+    console.error('[Verity] Redis clearAllCache error:', error);
+    return { deleted: 0 };
+  }
+}
