@@ -2,11 +2,12 @@
  * Trending headlines endpoint
  * GET /api/trending
  * Returns curated trending headlines with cached verification results
+ * Only shows headlines that have been pre-verified by the cron job
  */
 
 import { NextResponse } from 'next/server';
-import { getBestHeadlines, selectDiverseHeadlines, type TrendingHeadline } from '@/lib/services/trending-news';
-import { getCachedVerification } from '@/lib/services/trending-cache';
+import { selectDiverseHeadlines, type TrendingHeadline } from '@/lib/services/trending-news';
+import { getAllCachedHeadlines } from '@/lib/services/trending-cache';
 
 export interface TrendingHeadlineWithCache extends TrendingHeadline {
   cached?: {
@@ -19,35 +20,28 @@ export interface TrendingHeadlineWithCache extends TrendingHeadline {
 
 export async function GET() {
   try {
-    const headlines = await getBestHeadlines(6);
+    // Get all pre-verified headlines from cache (populated by cron job)
+    const cachedVerifications = await getAllCachedHeadlines();
 
-    if (headlines.length === 0) {
+    if (cachedVerifications.length === 0) {
       return NextResponse.json(
-        { success: false, error: 'No trending headlines available' },
+        { success: false, error: 'No verified headlines available' },
         { status: 404 }
       );
     }
 
-    // Attach cached verification results if available
-    const headlinesWithCache: TrendingHeadlineWithCache[] = await Promise.all(
-      headlines.map(async (headline) => {
-        const cached = await getCachedVerification(headline.title);
-        if (cached) {
-          return {
-            ...headline,
-            cached: {
-              id: cached.verificationResult.id,
-              category: cached.verificationResult.overallCategory,
-              confidence: cached.verificationResult.overallConfidence,
-              summary: cached.verificationResult.summary,
-            },
-          };
-        }
-        return headline;
-      })
-    );
+    // Convert cached verifications to the expected format
+    const headlinesWithCache: TrendingHeadlineWithCache[] = cachedVerifications.map(cv => ({
+      ...cv.headline,
+      cached: {
+        id: cv.verificationResult.id,
+        category: cv.verificationResult.overallCategory,
+        confidence: cv.verificationResult.overallConfidence,
+        summary: cv.verificationResult.summary,
+      },
+    }));
 
-    // Reorder to prioritize verdict diversity (show mix of verified/mixed/false)
+    // Select diverse headlines (mix of verified/mixed/false verdicts)
     const diverseHeadlines = selectDiverseHeadlines(headlinesWithCache, 6);
 
     return NextResponse.json({

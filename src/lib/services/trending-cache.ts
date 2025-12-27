@@ -99,3 +99,41 @@ export async function getAllCachedVerifications(headlines: TrendingHeadline[]): 
 export function isRedisConfigured(): boolean {
   return !!(process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN);
 }
+
+/**
+ * Get all cached headlines (scan Redis for cached verifications)
+ */
+export async function getAllCachedHeadlines(): Promise<CachedVerification[]> {
+  try {
+    // Scan for all keys with our prefix
+    const keys: string[] = [];
+    let cursor = '0';
+
+    do {
+      const [nextCursor, foundKeys] = await redis.scan(cursor, { match: `${CACHE_PREFIX}*`, count: 100 }) as [string, string[]];
+      cursor = nextCursor;
+      keys.push(...foundKeys);
+    } while (cursor !== '0');
+
+    if (keys.length === 0) {
+      return [];
+    }
+
+    // Fetch all cached verifications
+    const results: CachedVerification[] = [];
+    for (const key of keys) {
+      const cached = await redis.get<CachedVerification>(key);
+      if (cached) {
+        results.push(cached);
+      }
+    }
+
+    // Sort by cachedAt (most recent first)
+    results.sort((a, b) => b.cachedAt - a.cachedAt);
+
+    return results;
+  } catch (error) {
+    console.error('[Verity] Redis getAllCachedHeadlines error:', error);
+    return [];
+  }
+}
