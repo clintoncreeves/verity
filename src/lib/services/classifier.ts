@@ -13,20 +13,30 @@ import { CLAUDE_CONFIG } from '@/lib/config/constants';
  * This is a post-processing fallback in case the LLM ignores prompt instructions
  */
 function cleanReasoningText(text: string): string {
-  // Patterns to remove (with surrounding context if needed)
+  // Patterns to remove - match entire sentences containing forbidden phrases
   const forbiddenPatterns = [
-    // Full sentence patterns - remove entire sentence
-    /\s*However,?\s+the\s+sources?\s+provide[d]?\s+[^.]+\./gi,
-    /\s*The\s+sources?\s+provide[d]?\s+[^.]+\./gi,
-    /\s*[^.]*lack\s+of\s+(specific\s+)?details?[^.]*\./gi,
-    /\s*[^.]*which\s+is\s+not\s+provided\s+in\s+these\s+excerpts?[^.]*\./gi,
-    /\s*[^.]*from\s+these\s+excerpts?\s+alone[^.]*\./gi,
-    /\s*[^.]*available\s+excerpts?[^.]*\./gi,
-    /\s*[^.]*limits?\s+confidence[^.]*\./gi,
-    /\s*[^.]*prevents?\s+(higher\s+)?confidence[^.]*\./gi,
-    /\s*[^.]*constrains?\s+verification[^.]*\./gi,
-    /\s*[^.]*remain\s+unclear[^.]*\./gi,
-    /\s*[^.]*unclear\s+from\s+[^.]+\./gi,
+    // Source/evidence limitation phrases
+    /[^.]*\bthe\s+sources?\s+provide[d]?\b[^.]*\./gi,
+    /[^.]*\bsources?\s+provide[d]?\s+(are\s+)?limited\b[^.]*\./gi,
+    /[^.]*\bexcerpts?\s+provide[d]?\b[^.]*\./gi,
+    /[^.]*\bexcerpts?\s+(are\s+)?limited\b[^.]*\./gi,
+    /[^.]*\blimited\s+(detail|evidence|information)\b[^.]*\./gi,
+    /[^.]*\bminimal\s+details?\b[^.]*\./gi,
+    /[^.]*\black\s+of\s+(specific\s+)?details?\b[^.]*\./gi,
+    /[^.]*\bdon'?t\s+contain\s+detailed\b[^.]*\./gi,
+    // Excerpt references
+    /[^.]*\bin\s+the(se)?\s+excerpts?\b[^.]*\./gi,
+    /[^.]*\bfrom\s+(the(se)?\s+)?excerpts?\b[^.]*\./gi,
+    /[^.]*\bavailable\s+excerpts?\b[^.]*\./gi,
+    // Confidence/verification limitation phrases
+    /[^.]*\blimits?\s+confidence\b[^.]*\./gi,
+    /[^.]*\bprevents?\s+(full\s+)?verification\b[^.]*\./gi,
+    /[^.]*\bprevents?\s+(higher\s+)?confidence\b[^.]*\./gi,
+    /[^.]*\bconstrains?\s+verification\b[^.]*\./gi,
+    /[^.]*\bremain\s+unclear\b[^.]*\./gi,
+    /[^.]*\bunclear\s+from\b[^.]*\./gi,
+    // "However" sentences about evidence limitations
+    /\s*However,?\s+[^.]*\b(limited|excerpts?|evidence|sources?\s+provided)\b[^.]*\./gi,
   ];
 
   let cleaned = text;
