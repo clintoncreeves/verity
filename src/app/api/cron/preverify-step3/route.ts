@@ -1,6 +1,6 @@
 /**
  * Step 3: Verify one headline using article content from pipeline
- * Processes one headline per call to stay under 10s timeout
+ * Processes one headline per call for stability
  *
  * POST /api/cron/preverify-step3
  */
@@ -67,7 +67,7 @@ export async function POST(request: NextRequest) {
       verificationContent = `Headline: ${pending.title}\n\nArticle excerpt:\n${pending.articleExcerpt}`;
     }
 
-    // Run full verification with 60s timeout
+    // Run full verification
     const result = await verify({
       type: 'text',
       content: verificationContent,

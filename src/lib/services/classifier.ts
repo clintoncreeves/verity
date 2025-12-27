@@ -14,10 +14,22 @@ import { CLAUDE_CONFIG } from '@/lib/config/constants';
 const anthropic = new Anthropic();
 
 /**
+ * Strip XML citation tags from Claude's web search responses
+ * Claude includes <cite index="...">text</cite> tags when using web search
+ */
+function stripCitationTags(text: string): string {
+  // Remove <cite index="...">...</cite> tags but keep the text inside
+  return text.replace(/<cite\s+index="[^"]*">/gi, '').replace(/<\/cite>/gi, '');
+}
+
+/**
  * Clean up reasoning text by removing forbidden phrases that expose internal process limitations
  * This is a post-processing fallback in case the LLM ignores prompt instructions
  */
 function cleanReasoningText(text: string): string {
+  // First, strip any XML citation tags from web search responses
+  let cleaned = stripCitationTags(text);
+
   // Patterns to remove - match entire sentences containing forbidden phrases
   const forbiddenPatterns = [
     // Source/evidence limitation phrases
@@ -44,7 +56,6 @@ function cleanReasoningText(text: string): string {
     /\s*However,?\s+[^.]*\b(limited|excerpts?|evidence|sources?\s+provided)\b[^.]*\./gi,
   ];
 
-  let cleaned = text;
   for (const pattern of forbiddenPatterns) {
     cleaned = cleaned.replace(pattern, '');
   }

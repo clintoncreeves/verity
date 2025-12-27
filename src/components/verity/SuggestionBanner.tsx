@@ -60,8 +60,10 @@ function getDecompositionLabel(cached: CachedResult): { label: string; color: st
 
     // Determine the display based on what we found
     if (falseCount > 0) {
+      // Show breakdown: "6 claims, 1 likely false"
+      const falseLabel = falseCount === 1 ? "1 likely false" : `${falseCount} likely false`
       return {
-        label: `${verifiableComponents.length} claims`,
+        label: `${verifiableComponents.length} claims, ${falseLabel}`,
         color: "text-rose-600 dark:text-rose-400",
         borderColor: "border-rose-300 dark:border-rose-600",
         icon: XCircle

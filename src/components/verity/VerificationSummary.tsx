@@ -118,77 +118,86 @@ const categoryExplanations: Record<VerificationCategory, string> = {
   "satire-parody": "This content appears to be intentionally satirical or humorous.",
 }
 
+// Human-readable verdict descriptions for narrative
+const verdictNarrative: Record<string, string> = {
+  verified_fact: "is verified",
+  expert_consensus: "is supported by expert consensus",
+  partially_verified: "is partially verified",
+  opinion: "is an opinion that cannot be objectively verified",
+  speculation: "is speculation about the future",
+  disputed: "is disputed by credible sources",
+  likely_false: "is likely false based on available evidence",
+  confirmed_false: "is false",
+}
+
+// Type labels for narrative
+const typeNarrative: Record<string, string> = {
+  verifiable_fact: "The claim that",
+  presupposition: "The underlying assumption that",
+  value_judgment: "The opinion that",
+  prediction: "The prediction that",
+}
+
 /**
- * Generate a qualitative summary of verification results
+ * Truncate text to a maximum length, adding ellipsis if needed
+ */
+function truncateText(text: string, maxLength: number): string {
+  if (text.length <= maxLength) return text
+  return text.slice(0, maxLength - 3).trim() + "..."
+}
+
+/**
+ * Generate a narrative summary explaining each component's disposition
  */
 function generateSummary(
   components: ClaimComponent[],
   decompositionSummary: DecompositionSummary
-): { main: string; explanation: string | null } {
-  const verifiableComponents = components.filter(
-    c => c.type === "verifiable_fact" || c.type === "presupposition"
-  )
+): { main: string; breakdown: string[] } {
+  const breakdown: string[] = []
 
-  const nonVerifiableCount = decompositionSummary.valueJudgments + decompositionSummary.predictions
-
-  if (verifiableComponents.length === 0) {
-    if (nonVerifiableCount > 0) {
-      return {
-        main: `This statement contains ${nonVerifiableCount} opinion${nonVerifiableCount > 1 ? "s" : ""} or prediction${nonVerifiableCount > 1 ? "s" : ""} that cannot be objectively verified.`,
-        explanation: "Opinions and predictions express subjective views or future expectations that cannot be fact-checked.",
-      }
-    }
+  if (components.length === 0) {
     return {
       main: "No verifiable claims were identified in this statement.",
-      explanation: null,
+      breakdown: [],
     }
   }
 
-  // Count verdicts by category
-  const verdictCounts: Record<string, number> = {}
-  let unverifiedCount = 0
+  // Generate a sentence for each component
+  for (const component of components) {
+    const typePrefix = typeNarrative[component.type] || "The statement that"
+    const claimText = truncateText(component.text, 80)
 
-  for (const component of verifiableComponents) {
-    if (component.verdict) {
-      const category = mapBackendCategory(component.verdict.category)
-      verdictCounts[category] = (verdictCounts[category] || 0) + 1
+    if (component.type === "value_judgment" || component.type === "prediction") {
+      // Non-verifiable components
+      const label = component.type === "value_judgment" ? "opinion" : "prediction"
+      breakdown.push(`${typePrefix} "${claimText}" is a${label === "opinion" ? "n" : ""} ${label} and cannot be objectively verified.`)
+    } else if (component.verdict) {
+      // Verifiable components with verdicts
+      const verdictText = verdictNarrative[component.verdict.category] || "has been analyzed"
+      breakdown.push(`${typePrefix} "${claimText}" ${verdictText}.`)
     } else {
-      unverifiedCount++
+      // Verifiable but not yet verified
+      breakdown.push(`${typePrefix} "${claimText}" has not yet been verified.`)
     }
   }
 
-  // Build summary parts
-  const parts: string[] = []
+  // Build the main summary line
+  const verifiableCount = components.filter(
+    c => c.type === "verifiable_fact" || c.type === "presupposition"
+  ).length
+  const opinionCount = decompositionSummary.valueJudgments + decompositionSummary.predictions
 
-  // Sort categories by priority (most concerning first)
-  const sortedCategories = Object.entries(verdictCounts)
-    .sort(([a], [b]) => categoryPriority[a as VerificationCategory] - categoryPriority[b as VerificationCategory])
+  let main = `This statement was broken down into ${components.length} component${components.length > 1 ? "s" : ""}`
 
-  for (const [category, count] of sortedCategories) {
-    const displayName = categoryDisplayNames[category as VerificationCategory] || category
-    parts.push(`${count} ${displayName}`)
+  if (verifiableCount > 0 && opinionCount > 0) {
+    main += `: ${verifiableCount} verifiable claim${verifiableCount > 1 ? "s" : ""} and ${opinionCount} opinion${opinionCount > 1 ? "s" : ""}/prediction${opinionCount > 1 ? "s" : ""}.`
+  } else if (verifiableCount > 0) {
+    main += ` for verification.`
+  } else {
+    main += `, all of which are opinions or predictions that cannot be objectively fact-checked.`
   }
 
-  if (unverifiedCount > 0) {
-    parts.push(`${unverifiedCount} not yet verified`)
-  }
-
-  const claimWord = verifiableComponents.length === 1 ? "claim" : "claims"
-  let main = `Of ${verifiableComponents.length} verifiable ${claimWord}: ${parts.join(", ")}.`
-
-  if (nonVerifiableCount > 0) {
-    const opinionWord = nonVerifiableCount === 1 ? "opinion/prediction" : "opinions/predictions"
-    main += ` This statement also contains ${nonVerifiableCount} ${opinionWord}.`
-  }
-
-  // Generate explanation based on the primary verdict
-  let explanation: string | null = null
-  if (sortedCategories.length > 0) {
-    const primaryCategory = sortedCategories[0][0] as VerificationCategory
-    explanation = categoryExplanations[primaryCategory] || null
-  }
-
-  return { main, explanation }
+  return { main, breakdown }
 }
 
 interface VerificationSummaryProps {
@@ -206,25 +215,35 @@ export function VerificationSummary({
   apiSummary,
   className,
 }: VerificationSummaryProps) {
-  const { main, explanation } = generateSummary(components, decompositionSummary)
+  const { main, breakdown } = generateSummary(components, decompositionSummary)
   const warnings = detectWarnings(components, originalClaim)
-
-  // Use the API summary if available and substantive, otherwise fall back to generated explanation
-  const displayExplanation = apiSummary && apiSummary.length > 20 ? apiSummary : explanation
 
   return (
     <div className={cn("space-y-4", className)}>
-      {/* Qualitative Summary */}
+      {/* Analysis Summary */}
       <div className="rounded-lg border bg-muted/30 p-4">
         <h4 className="text-sm font-medium text-muted-foreground uppercase tracking-wide mb-2">
-          Summary
+          Analysis
         </h4>
-        <p className="text-sm leading-relaxed">
+        <p className="text-sm leading-relaxed mb-3">
           {main}
         </p>
-        {displayExplanation && (
-          <p className="text-sm text-muted-foreground mt-2 leading-relaxed">
-            {displayExplanation}
+
+        {/* Component-by-component breakdown */}
+        {breakdown.length > 0 && (
+          <ul className="space-y-2 text-sm text-muted-foreground">
+            {breakdown.map((item, index) => (
+              <li key={index} className="leading-relaxed pl-3 border-l-2 border-muted-foreground/20">
+                {item}
+              </li>
+            ))}
+          </ul>
+        )}
+
+        {/* Optional API-generated reasoning as additional context */}
+        {apiSummary && apiSummary.length > 20 && (
+          <p className="text-sm text-muted-foreground mt-4 pt-3 border-t leading-relaxed">
+            {apiSummary}
           </p>
         )}
       </div>
