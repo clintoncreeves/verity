@@ -5,7 +5,7 @@
 
 import { anthropicClient } from './anthropic-client';
 import type { VerificationCategory, Source, ExistingFactCheck } from '@/types/verity';
-import { containsValueJudgmentKeywords, containsIntentClaim, isFalseVerdict, isAncientHistoricalClaim } from '@/lib/utils/verdict-utils';
+import { containsValueJudgmentKeywords, containsIntentClaim, isFalseVerdict, isAncientHistoricalClaim, isDenialOfEstablishedFact } from '@/lib/utils/verdict-utils';
 import { CLAUDE_CONFIG } from '@/lib/config/constants';
 
 /**
@@ -259,6 +259,19 @@ export async function classifyClaim(
 
     // Clamp confidence
     result.confidence = Math.max(0, Math.min(1, result.confidence || 0.5));
+
+    // GUARD: Denial of established facts should be confirmed_false, not verified_fact
+    // The LLM often gets confused and "verifies" that the opposite is true, rather than classifying the denial claim
+    const denialCheck = isDenialOfEstablishedFact(claim);
+    if (denialCheck.isDenial) {
+      // The claim is a denial of established fact - it should be confirmed_false
+      if (result.category === 'verified_fact' || result.category === 'expert_consensus' || result.category === 'partially_verified') {
+        console.warn(`[Verity] Denial claim about ${denialCheck.topic} incorrectly classified as ${result.category}, correcting to confirmed_false`);
+        result.category = 'confirmed_false';
+        result.reasoning = denialCheck.reasoning || result.reasoning;
+        result.confidence = 0.99; // Very high confidence for well-established denials
+      }
+    }
 
     // GUARD: Intent claims should never be verified_fact or expert_consensus
     // Intent/motivation cannot be definitively proven without explicit statement from the subject

@@ -1,14 +1,16 @@
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
-import { CategoryBadge } from "./CategoryBadge"
-import { ConfidenceBar } from "./ConfidenceBar"
 import { SourceCard, type Source } from "./SourceCard"
-import { EvidenceList, type Evidence } from "./EvidenceList"
 import { FactCheckPanel, type FactCheck } from "./FactCheckPanel"
 import { DecomposedClaimDisplay } from "./DecomposedClaimDisplay"
 import { DecompositionSummaryCard } from "./DecompositionSummaryCard"
+import { VerificationSummary } from "./VerificationSummary"
 import type { VerificationCategory } from "@/lib/category-config"
 import { cn } from "@/lib/utils"
 import type { ClaimComponent, DecompositionSummary } from "@/types/verity"
+
+// Keep these imports for backward compatibility, but they're no longer used in the main flow
+export type { Source } from "./SourceCard"
+export type { Evidence } from "./EvidenceList"
 
 // Verdict info for showing on decomposed claim components
 export interface ClaimVerdict {
@@ -17,16 +19,18 @@ export interface ClaimVerdict {
 }
 
 export interface VerificationResult {
+  // Legacy fields (kept for backward compatibility but no longer displayed as "overall")
   category: VerificationCategory
   confidence: number
   summary: string
   reasoning?: string
   sources: Source[]
-  evidence: Evidence[]
+  evidence: { id: string; text: string; type: string }[]
   factChecks?: FactCheck[]
   verificationId?: string
   verifiedAt?: string
-  // Decomposition data
+  originalClaim?: string // For warning detection
+  // Decomposition data - this is now the primary display
   decomposition?: {
     components: ClaimComponent[]
     summary: DecompositionSummary
@@ -42,50 +46,44 @@ interface ResultCardProps {
 export function ResultCard({ result, className }: ResultCardProps) {
   const hasDecomposition = result.decomposition && result.decomposition.components.length > 0
 
+  // If no decomposition, we can't show the breakdown - this shouldn't happen in normal flow
+  if (!hasDecomposition) {
+    return (
+      <div className={cn("space-y-6 w-full max-w-3xl mx-auto", className)}>
+        <Card className="border-2">
+          <CardHeader>
+            <p className="text-muted-foreground">
+              Unable to analyze this statement. Please try rephrasing.
+            </p>
+          </CardHeader>
+        </Card>
+      </div>
+    )
+  }
+
   return (
     <div className={cn("space-y-6 w-full max-w-3xl mx-auto", className)}>
-      {/* Decomposition Card - Show first so users understand what's being verified */}
-      {hasDecomposition && (
-        <Card className="border-2">
-          <CardHeader className="pb-2">
-            <h3 className="text-lg font-semibold">Statement Breakdown</h3>
-            <DecompositionSummaryCard summary={result.decomposition!.summary} />
-          </CardHeader>
-          <CardContent className="pt-0">
-            <DecomposedClaimDisplay
-              components={result.decomposition!.components}
-              summary={result.decomposition!.summary}
-              claimVerdict={result.decomposition!.claimVerdict}
-            />
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Verification Result Card - Applies to factual claims only */}
+      {/* Statement Breakdown - The primary verification display */}
       <Card className="border-2">
-        <CardHeader className="space-y-4">
-          {hasDecomposition && (
-            <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium">
-              Verification of factual claims
-            </p>
-          )}
-          <div className="flex items-center justify-between gap-4">
-            <CategoryBadge category={result.category} className="text-base px-4 py-2" />
-            <ConfidenceBar confidence={result.confidence} className="flex-1 max-w-[200px]" />
-          </div>
-
-          {/* Summary / Reasoning */}
-          <p className="text-base leading-relaxed">
-            {result.summary}
-          </p>
+        <CardHeader className="pb-2">
+          <h3 className="text-lg font-semibold">Statement Breakdown</h3>
+          <DecompositionSummaryCard summary={result.decomposition!.summary} />
         </CardHeader>
-
-        <CardContent className="pt-0 space-y-6">
-          {result.evidence.length > 0 && !hasDecomposition && (
-            <EvidenceList evidence={result.evidence} />
-          )}
+        <CardContent className="pt-0">
+          <DecomposedClaimDisplay
+            components={result.decomposition!.components}
+            summary={result.decomposition!.summary}
+            claimVerdict={result.decomposition!.claimVerdict}
+          />
         </CardContent>
       </Card>
+
+      {/* Verification Summary - Qualitative summary + warnings */}
+      <VerificationSummary
+        components={result.decomposition!.components}
+        decompositionSummary={result.decomposition!.summary}
+        originalClaim={result.originalClaim}
+      />
 
       {result.sources.length > 0 && (
         <div className="space-y-3">

@@ -130,6 +130,7 @@ export default function Home() {
         })) || [],
         verificationId: apiResult.id,
         verifiedAt: apiResult.verifiedAt,
+        originalClaim: input.content, // Pass original claim for warning detection
         decomposition,
       }
 

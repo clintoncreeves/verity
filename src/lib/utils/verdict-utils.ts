@@ -141,6 +141,113 @@ export function isUnverifiableClaim(claim: string): boolean {
 }
 
 /**
+ * Check if a claim is a denial of well-established historical facts or scientific consensus
+ * These claims should be classified as confirmed_false, not verified_fact
+ *
+ * The LLM often gets confused and classifies denial claims as "verified" because
+ * it's verifying that the opposite is true, rather than classifying the claim itself
+ */
+export function isDenialOfEstablishedFact(claim: string): { isDenial: boolean; topic?: string; reasoning?: string } {
+  // Holocaust denial patterns
+  const holocaustDenialPatterns = [
+    /\bholocaust\b.*\b(?:never|didn'?t|did not|wasn'?t|was not)\b.*\bhappen/i,
+    /\bholocaust\b.*\b(?:hoax|fake|lie|myth|fabricat)/i,
+    /\bholocaust\b.*\b(?:exaggerat|overstat)/i,
+    /\b(?:never|didn'?t|did not)\b.*\bholocaust\b/i,
+    /\bno\b.*\bholocaust\b/i,
+    /\bholocaust\b.*\b(?:didn'?t|did not|never)\b.*\b(?:exist|occur|take place)/i,
+  ];
+
+  if (holocaustDenialPatterns.some(p => p.test(claim))) {
+    return {
+      isDenial: true,
+      topic: 'Holocaust',
+      reasoning: 'The Holocaust is one of the most thoroughly documented events in history, confirmed by Nazi documentation, survivor testimony, perpetrator confessions, physical evidence, and decades of historical scholarship. Holocaust denial is universally rejected by historians and classified as confirmed misinformation.',
+    };
+  }
+
+  // Moon landing denial patterns
+  const moonLandingDenialPatterns = [
+    /\bmoon\s*landing\b.*\b(?:fake|faked|hoax|staged|never)/i,
+    /\b(?:never|didn'?t|did not)\b.*\b(?:land|go|went)\b.*\bmoon\b/i,
+    /\bmoon\b.*\b(?:never|didn'?t|did not)\b.*\b(?:land|happen)/i,
+    /\bno one\b.*\b(?:land|been)\b.*\bmoon\b/i,
+  ];
+
+  if (moonLandingDenialPatterns.some(p => p.test(claim))) {
+    return {
+      isDenial: true,
+      topic: 'Moon landing',
+      reasoning: 'The Apollo moon landings (1969-1972) are confirmed by extensive physical evidence including lunar samples, retroreflectors still used by scientists today, independent verification by multiple countries including the Soviet Union, and thousands of NASA employees and contractors. Moon landing denial has been thoroughly debunked.',
+    };
+  }
+
+  // Evolution denial patterns
+  const evolutionDenialPatterns = [
+    /\bevolution\b.*\b(?:is|was)\b.*\b(?:false|lie|hoax|myth|fake)/i,
+    /\bevolution\b.*\b(?:never|didn'?t|did not)\b.*\bhappen/i,
+    /\b(?:no|isn'?t|is not)\b.*\bevolution\b/i,
+    /\bevolution\b.*\b(?:isn'?t|is not)\b.*\b(?:real|true)/i,
+  ];
+
+  if (evolutionDenialPatterns.some(p => p.test(claim))) {
+    return {
+      isDenial: true,
+      topic: 'Evolution',
+      reasoning: 'Evolution by natural selection is supported by overwhelming evidence from multiple scientific fields including genetics, paleontology, comparative anatomy, and direct observation. It represents the scientific consensus of biologists worldwide.',
+    };
+  }
+
+  // Earth shape denial (flat earth)
+  const flatEarthPatterns = [
+    /\bearth\b.*\b(?:is|was)\b.*\bflat\b/i,
+    /\bflat\s*earth\b/i,
+    /\bearth\b.*\b(?:isn'?t|is not|not)\b.*\b(?:round|sphere|spherical|globe)/i,
+  ];
+
+  if (flatEarthPatterns.some(p => p.test(claim))) {
+    return {
+      isDenial: true,
+      topic: 'Earth\'s shape',
+      reasoning: 'Earth\'s spherical shape has been confirmed since ancient times and is supported by satellite imagery, physics, navigation, and direct observation. Flat Earth claims contradict basic physics and observable reality.',
+    };
+  }
+
+  // Vaccine-autism link (debunked)
+  const vaccineAutismPatterns = [
+    /\bvaccines?\b.*\bcause\b.*\bautism\b/i,
+    /\bautism\b.*\bcaused?\b.*\bvaccines?\b/i,
+    /\bvaccines?\b.*\b(?:cause|lead to|result in)\b.*\bautism\b/i,
+  ];
+
+  if (vaccineAutismPatterns.some(p => p.test(claim))) {
+    return {
+      isDenial: true,
+      topic: 'Vaccine safety',
+      reasoning: 'The claimed link between vaccines and autism has been thoroughly debunked by numerous large-scale studies involving millions of children. The original study claiming this link was retracted and its author lost his medical license for fraud.',
+    };
+  }
+
+  // Climate change denial
+  const climateChangePatterns = [
+    /\bclimate\s*change\b.*\b(?:is|was)\b.*\b(?:hoax|fake|lie|myth|scam)/i,
+    /\bglobal\s*warming\b.*\b(?:is|was)\b.*\b(?:hoax|fake|lie|myth|scam)/i,
+    /\b(?:no|isn'?t|is not)\b.*\bclimate\s*change\b/i,
+    /\bclimate\s*change\b.*\b(?:isn'?t|is not)\b.*\b(?:real|happening)/i,
+  ];
+
+  if (climateChangePatterns.some(p => p.test(claim))) {
+    return {
+      isDenial: true,
+      topic: 'Climate change',
+      reasoning: 'Human-caused climate change is supported by overwhelming scientific evidence and represents the consensus of climate scientists worldwide, as documented by the IPCC and major scientific organizations.',
+    };
+  }
+
+  return { isDenial: false };
+}
+
+/**
  * Check if a claim is about ancient history (pre-500 CE)
  * These claims rely on indirect evidence and historical methodology,
  * so confidence should be capped even when expert consensus exists
