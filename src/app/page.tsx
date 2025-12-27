@@ -144,7 +144,7 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-background">
-      <main className="container mx-auto px-4 py-4 max-w-3xl">
+      <main className="container mx-auto px-4 py-4 max-w-3xl lg:max-w-5xl xl:max-w-6xl">
         <VerityHeader onReset={handleReset} />
 
         <div className="space-y-6 mt-4">
