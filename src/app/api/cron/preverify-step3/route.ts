@@ -64,13 +64,14 @@ export async function POST(request: NextRequest) {
       verificationContent = `Headline: ${pending.title}\n\nArticle excerpt:\n${pending.articleExcerpt}`;
     }
 
-    // Run verification (no web search in classifier - we already have article content)
+    // Run verification in fast mode (skip decomposition and component classification)
     const result = await verify({
       type: 'text',
       content: verificationContent,
       options: {
-        includeFactChecks: true,
-        includeWebSearch: false, // Disable classifier web search for speed
+        includeFactChecks: false, // Skip fact-check API to save time
+        includeWebSearch: false, // Disable web search for speed
+        fastMode: true, // Skip decomposition and component classification
       },
     });
 

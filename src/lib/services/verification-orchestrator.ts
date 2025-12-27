@@ -28,6 +28,7 @@ export interface VerificationRequest {
     maxSources?: number;
     includeFactChecks?: boolean;
     includeWebSearch?: boolean;
+    fastMode?: boolean; // Skip decomposition and component classification for speed
   };
 }
 
@@ -98,15 +99,23 @@ export async function verify(request: VerificationRequest): Promise<FullVerifica
     maxSources = VERIFICATION_CONFIG.MAX_SOURCES,
     includeFactChecks = true,
     includeWebSearch = true,
+    fastMode = false,
   } = options;
 
-  console.log(`[Verity] Starting verification for ${type} input`);
+  console.log(`[Verity] Starting verification for ${type} input${fastMode ? ' (fast mode)' : ''}`);
 
   // Step 1: Decompose the ORIGINAL input into components (facts vs opinions)
   // This must happen BEFORE claim extraction, which filters out opinions
-  console.log('[Verity] Step 1: Decomposing input into components...');
-  let inputDecomposition = await decomposeClaim(content);
-  console.log(`[Verity] Found ${inputDecomposition.components.length} components`);
+  // In fast mode, skip decomposition to save time
+  let inputDecomposition: DecompositionResult;
+  if (fastMode) {
+    console.log('[Verity] Step 1: Skipping decomposition (fast mode)');
+    inputDecomposition = { components: [], summary: { totalComponents: 0, verifiableFacts: 0, valueJudgments: 0, predictions: 0, presuppositions: 0, overallVerifiability: 0 } };
+  } else {
+    console.log('[Verity] Step 1: Decomposing input into components...');
+    inputDecomposition = await decomposeClaim(content);
+    console.log(`[Verity] Found ${inputDecomposition.components.length} components`);
+  }
 
   // Step 2: Extract verifiable claims from the input
   console.log('[Verity] Step 2: Extracting claims...');
@@ -188,35 +197,40 @@ export async function verify(request: VerificationRequest): Promise<FullVerifica
 
   // Step 5b: Classify each verifiable_fact component individually
   // This ensures compound claims like "X AND Y" get separate verdicts for each part
-  console.log('[Verity] Step 5b: Classifying individual components...');
-  const verifiableComponents = inputDecomposition.components.filter(
-    c => c.type === 'verifiable_fact'
-  );
+  // Skip in fast mode to save time
+  if (!fastMode) {
+    console.log('[Verity] Step 5b: Classifying individual components...');
+    const verifiableComponents = inputDecomposition.components.filter(
+      c => c.type === 'verifiable_fact'
+    );
 
-  if (verifiableComponents.length > 1) {
-    // Multiple verifiable facts - classify each separately
-    for (const component of verifiableComponents) {
-      try {
-        const componentClassification = await classifyClaim(
-          component.text,
-          allSources,
-          existingFactChecks
-        );
-        component.verdict = {
-          category: componentClassification.category,
-          confidence: Math.round(componentClassification.confidence * 100),
-        };
-      } catch (error) {
-        console.error(`[Verity] Failed to classify component: ${component.text}`, error);
+    if (verifiableComponents.length > 1) {
+      // Multiple verifiable facts - classify each separately
+      for (const component of verifiableComponents) {
+        try {
+          const componentClassification = await classifyClaim(
+            component.text,
+            allSources,
+            existingFactChecks
+          );
+          component.verdict = {
+            category: componentClassification.category,
+            confidence: Math.round(componentClassification.confidence * 100),
+          };
+        } catch (error) {
+          console.error(`[Verity] Failed to classify component: ${component.text}`, error);
+        }
       }
+      console.log(`[Verity] Classified ${verifiableComponents.length} components individually`);
+    } else if (verifiableComponents.length === 1 && verifiedClaims.length > 0) {
+      // Single verifiable fact - use the primary claim's verdict
+      verifiableComponents[0].verdict = {
+        category: verifiedClaims[0].category,
+        confidence: verifiedClaims[0].confidence,
+      };
     }
-    console.log(`[Verity] Classified ${verifiableComponents.length} components individually`);
-  } else if (verifiableComponents.length === 1 && verifiedClaims.length > 0) {
-    // Single verifiable fact - use the primary claim's verdict
-    verifiableComponents[0].verdict = {
-      category: verifiedClaims[0].category,
-      confidence: verifiedClaims[0].confidence,
-    };
+  } else {
+    console.log('[Verity] Step 5b: Skipping component classification (fast mode)');
   }
 
   // Step 6: Determine overall classification
