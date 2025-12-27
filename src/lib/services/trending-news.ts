@@ -303,64 +303,34 @@ function scoreHeadlineForNuanced(headline: TrendingHeadline): number {
 
 /**
  * Get the best headlines for showcasing Verity
- * Returns a mix of verifiable facts AND nuanced/mixed claims to show platform range
+ * Uses Verity's core decomposition logic via Claude to predict verdict diversity
  */
 export async function getBestHeadlines(count: number = 6): Promise<TrendingHeadline[]> {
+  const { analyzeHeadlines, selectDiverseByPrediction } = await import('./headline-analyzer');
+
   const headlines = await fetchTrendingHeadlines();
 
   if (headlines.length === 0) {
     return [];
   }
 
-  // Score headlines by both criteria
-  const scoredVerifiable = headlines
-    .map(h => ({ headline: h, score: scoreHeadlineForVerifiable(h) }))
-    .sort((a, b) => b.score - a.score);
+  // Use regex pre-filter to get candidates (fast, no API call)
+  const candidates = headlines
+    .map(h => ({ headline: h, score: scoreHeadlineForNuanced(h) + scoreHeadlineForVerifiable(h) }))
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 25) // Top 25 candidates for AI analysis
+    .map(s => s.headline);
 
-  const scoredNuanced = headlines
-    .map(h => ({ headline: h, score: scoreHeadlineForNuanced(h) }))
-    .sort((a, b) => b.score - a.score);
+  // Use Claude to analyze claim structure and predict verdict buckets
+  console.log(`[Verity] Analyzing ${candidates.length} headline candidates with Claude...`);
+  const analyzed = await analyzeHeadlines(candidates);
 
-  // Select a MIX: ~60% nuanced (more likely mixed verdict), ~40% verifiable
-  const nuancedCount = Math.ceil(count * 0.6);
-  const verifiableCount = count - nuancedCount;
+  // Select diverse headlines based on AI predictions
+  const selected = selectDiverseByPrediction(analyzed, count);
+  console.log(`[Verity] Selected ${selected.length} headlines with predictions:`,
+    selected.map(h => `${h.prediction}: ${h.title.substring(0, 40)}...`));
 
-  const selected: TrendingHeadline[] = [];
-  const usedSources = new Set<string>();
-  const usedTitles = new Set<string>();
-
-  // First, take top nuanced headlines (likely to produce mixed/partially verified)
-  for (const { headline } of scoredNuanced) {
-    if (selected.length >= nuancedCount) break;
-    if (usedSources.has(headline.source) || usedTitles.has(headline.title)) continue;
-
-    selected.push(headline);
-    usedSources.add(headline.source);
-    usedTitles.add(headline.title);
-  }
-
-  // Then, fill with top verifiable headlines (likely to produce verified)
-  for (const { headline } of scoredVerifiable) {
-    if (selected.length >= count) break;
-    if (usedTitles.has(headline.title)) continue; // Skip if already added
-    // Allow same source for verifiable if needed
-
-    selected.push(headline);
-    usedTitles.add(headline.title);
-  }
-
-  // If still not enough, add any remaining
-  if (selected.length < count) {
-    for (const headline of headlines) {
-      if (selected.length >= count) break;
-      if (!usedTitles.has(headline.title)) {
-        selected.push(headline);
-        usedTitles.add(headline.title);
-      }
-    }
-  }
-
-  return selected;
+  return selected.map(({ prediction, reasoning, ...headline }) => headline);
 }
 
 // Verdict diversity buckets for better showcase
